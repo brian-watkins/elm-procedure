@@ -12,7 +12,6 @@ import Json.Encode as Encode
 
 type Msg
   = DoThings
-  | ReceivedServerResponse (Result Http.Error ServerMessage)
   | ReceivedAnotherServerResponse (Result Http.Error ServerMessage)
 
 
@@ -50,12 +49,6 @@ update msg model =
       , Time.now
           |> Task.perform (superTagger)
       )
-    ReceivedServerResponse result ->
-      case result of
-        Ok message ->
-          ( model, Cmd.map SubMsg <| sendAnotherServerRequest message.message )
-        Err _ ->
-          ( model, Cmd.none )
     ReceivedAnotherServerResponse result ->
       case result of
         Ok message ->
@@ -67,12 +60,23 @@ update msg model =
 superTagger : Posix -> AppMsg
 superTagger time =
   sendServerRequest time
-    |> CmdHolder
+    |> ChainedCmdHolder
 
 
 sendServerRequest time =
   Http.post "http://funserver.com/api/fun" (requestBody time) messageDecoder
-    |> Http.send ReceivedServerResponse
+    |> Http.send awesomeTagger
+
+
+awesomeTagger : Result Http.Error ServerMessage -> AppMsg
+awesomeTagger result =
+  case result of
+    Ok message ->
+      sendAnotherServerRequest message.message
+        |> CmdHolder
+    Err _ ->
+      Cmd.none
+        |> CmdHolder
 
 
 sendAnotherServerRequest message =
@@ -94,11 +98,10 @@ messageDecoder =
 
 -------
 
-thenDo : (a -> Cmd Msg) -> a -> Cmd AppMsg
-thenDo tagger item =
-  tagger item
-    |> Task.succeed
-    |> Task.perform CmdHolder
+-- thenDo : (a -> Cmd Msg) -> a -> AppMsg
+-- thenDo tagger item =
+--   tagger item
+--     |> CmdHolder
 
 
 -------
@@ -106,6 +109,7 @@ thenDo tagger item =
 
 type AppMsg
   = CmdHolder (Cmd Msg)
+  | ChainedCmdHolder (Cmd AppMsg)
   | SubMsg Msg
 
 
@@ -131,6 +135,8 @@ appUpdate msg model =
   case msg of
     CmdHolder cmd ->
       (model, Cmd.map SubMsg cmd)
+    ChainedCmdHolder cmd ->
+      (model, cmd)
     SubMsg subMsg ->
       let
         ( subModel, subCmd ) = update subMsg model.subModel    
