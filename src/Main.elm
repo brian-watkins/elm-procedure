@@ -50,7 +50,11 @@ update msg model =
     DoThings ->
       ( model
       , Time.now
-          |> Task.perform (superTagger)
+          |> Task.perform (thenDo <| 
+              sendServerRequest <| thenDo <| 
+              sendAwesomeRequest <| thenDo <| 
+              sendSweetRequest ReceivedAThirdServerResponse
+          )
       )
     ReceivedAThirdServerResponse result ->
       case result of
@@ -60,47 +64,30 @@ update msg model =
           ( model, Cmd.none )
 
 
-superTagger : Posix -> Msg
-superTagger time =
-  sendServerRequest time
-    |> CmdHolder
-
-
-sendServerRequest time =
+sendServerRequest : (Result Http.Error ServerMessage -> Msg) -> Posix -> Cmd Msg
+sendServerRequest tagger time =
   Http.post "http://funserver.com/api/fun" (requestBody time) messageDecoder
-    |> Http.send awesomeTagger
+    |> Http.send tagger
 
 
-awesomeTagger : Result Http.Error ServerMessage -> Msg
-awesomeTagger result =
+sendAwesomeRequest : (Result Http.Error ServerMessage -> Msg) -> Result Http.Error ServerMessage -> Cmd Msg
+sendAwesomeRequest tagger result =
   case result of
     Ok message ->
-      sendAnotherServerRequest message.message
-        |> CmdHolder
+      Http.get ("http://awesomeserver.com/api/awesome?message=" ++ message.message) messageDecoder
+        |> Http.send tagger
     Err _ ->
       Cmd.none
-        |> CmdHolder
 
 
-sendAnotherServerRequest message =
-  Http.get ("http://awesomeserver.com/api/awesome?message=" ++ message) messageDecoder
-    |> Http.send sweetTagger
-
-
-sweetTagger : Result Http.Error ServerMessage -> Msg
-sweetTagger result =
+sendSweetRequest : (Result Http.Error ServerMessage -> Msg) -> Result Http.Error ServerMessage -> Cmd Msg
+sendSweetRequest tagger result =
   case result of
     Ok message ->
-      sendAThirdServerRequest message.message
-        |> CmdHolder
+      Http.post ("http://sweetserver.com/api/sweet") (sweetRequestBody message.message) messageDecoder
+        |> Http.send tagger
     Err _ ->
       Cmd.none
-        |> CmdHolder
-
-
-sendAThirdServerRequest message =
-  Http.post ("http://sweetserver.com/api/sweet") (sweetRequestBody message) messageDecoder
-    |> Http.send ReceivedAThirdServerResponse
 
 
 sweetRequestBody : String -> Http.Body
@@ -122,6 +109,11 @@ messageDecoder =
 
 
 -------
+
+thenDo : (a -> Cmd Msg) -> a -> Msg
+thenDo generator data =
+  generator data
+    |> CmdHolder
 
 
 -- type AppMsg
