@@ -11,7 +11,7 @@ import Elmer.Http as Http exposing (HttpResponseStub)
 import Elmer.Http.Stub as Stub exposing (withBody, withStatus)
 import Elmer.Http.Status as Status
 import Elmer.Http.Route as Route
-import Elmer.Http.Matchers exposing (hasBody)
+import Elmer.Http.Matchers exposing (hasBody, hasQueryParam)
 import Elmer.Spy as Spy
 import Main as App
 import Task
@@ -23,7 +23,7 @@ timeTest =
   let
     state =
       Elmer.given App.defaultAppModel App.appView App.appUpdate
-        |> Spy.use [ timeSpy 1515281017615, Http.serve [ serverStub ] ]
+        |> Spy.use [ timeSpy 1515281017615, Http.serve [ serverStub, anotherServerStub ] ]
         |> Markup.target << by [ id "doThingsButton" ]
         |> Event.click
   in  
@@ -32,6 +32,12 @@ timeTest =
       state
         |> Http.expect (Route.post "http://funserver.com/api/fun") (
           Elmer.atIndex 0 <| hasBody ("{\"time\":1515281017615}")
+        )
+  , test "it passes the server response to another request" <|
+    \() ->
+      state
+        |> Http.expect (Route.get "http://awesomeserver.com/api/awesome") (
+          Elmer.atIndex 0 <| hasQueryParam ("message", "some-key")
         )
   , test "it prints the response message" <|
     \() ->
@@ -50,6 +56,13 @@ serverStub : HttpResponseStub
 serverStub =
   Stub.for (Route.post "http://funserver.com/api/fun")
     |> withStatus (httpAcceptedStatus)
+    |> withBody "{\"message\":\"some-key\"}"
+
+
+anotherServerStub : HttpResponseStub
+anotherServerStub =
+  Stub.for (Route.get "http://awesomeserver.com/api/awesome")
+    |> withStatus Status.ok
     |> withBody "{\"message\":\"Cool Server Message!\"}"
 
 

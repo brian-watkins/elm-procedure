@@ -13,6 +13,7 @@ import Json.Encode as Encode
 type Msg
   = DoThings
   | ReceivedServerResponse (Result Http.Error ServerMessage)
+  | ReceivedAnotherServerResponse (Result Http.Error ServerMessage)
 
 
 type alias ServerMessage =
@@ -52,6 +53,12 @@ update msg model =
     ReceivedServerResponse result ->
       case result of
         Ok message ->
+          ( model, Cmd.map SubMsg <| sendAnotherServerRequest message.message )
+        Err _ ->
+          ( model, Cmd.none )
+    ReceivedAnotherServerResponse result ->
+      case result of
+        Ok message ->
           ( { model | serverMessage = message.message }, Cmd.none )
         Err _ ->
           ( model, Cmd.none )
@@ -66,6 +73,11 @@ superTagger time =
 sendServerRequest time =
   Http.post "http://funserver.com/api/fun" (requestBody time) messageDecoder
     |> Http.send ReceivedServerResponse
+
+
+sendAnotherServerRequest message =
+  Http.get ("http://awesomeserver.com/api/awesome?message=" ++ message) messageDecoder
+    |> Http.send ReceivedAnotherServerResponse
 
 
 requestBody : Posix -> Http.Body
