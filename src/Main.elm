@@ -12,7 +12,6 @@ import Json.Encode as Encode
 
 type Msg
   = DoThings
-  | ReceivedAnotherServerResponse (Result Http.Error ServerMessage)
   | ReceivedAThirdServerResponse (Result Http.Error ServerMessage)
 
 
@@ -50,12 +49,6 @@ update msg model =
       , Time.now
           |> Task.perform (superTagger)
       )
-    ReceivedAnotherServerResponse result ->
-      case result of
-        Ok message ->
-          ( model, Cmd.map SubMsg <| sendAThirdServerRequest message.message )
-        Err _ ->
-          ( model, Cmd.none )
     ReceivedAThirdServerResponse result ->
       case result of
         Ok message ->
@@ -80,7 +73,7 @@ awesomeTagger result =
   case result of
     Ok message ->
       sendAnotherServerRequest message.message
-        |> CmdHolder
+        |> ChainedCmdHolder
     Err _ ->
       Cmd.none
         |> CmdHolder
@@ -88,7 +81,18 @@ awesomeTagger result =
 
 sendAnotherServerRequest message =
   Http.get ("http://awesomeserver.com/api/awesome?message=" ++ message) messageDecoder
-    |> Http.send ReceivedAnotherServerResponse
+    |> Http.send sweetTagger
+
+
+sweetTagger : Result Http.Error ServerMessage -> AppMsg
+sweetTagger result =
+  case result of
+    Ok message ->
+      sendAThirdServerRequest message.message
+        |> CmdHolder
+    Err _ ->
+      Cmd.none
+        |> CmdHolder
 
 
 sendAThirdServerRequest message =
@@ -112,14 +116,6 @@ messageDecoder : Json.Decoder ServerMessage
 messageDecoder =
   Json.field "message" Json.string
     |> Json.map ServerMessage
-
-
--------
-
--- thenDo : (a -> Cmd Msg) -> a -> AppMsg
--- thenDo tagger item =
---   tagger item
---     |> CmdHolder
 
 
 -------
