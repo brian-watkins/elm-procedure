@@ -49,12 +49,10 @@ update msg model =
       ( model, cmd )
     DoThings ->
       ( model
-      , Time.now
-          |> Task.perform (thenDo <| 
-              sendServerRequest <| thenDo <| 
-              sendAwesomeRequest <| thenDo <| 
-              sendSweetRequest ReceivedAThirdServerResponse
-          )
+      , fetchTime <| thenDo <|
+          sendServerRequest <| thenDo <|
+          sendAwesomeRequest <| thenDo <|
+          sendSweetRequest ReceivedAThirdServerResponse
       )
     ReceivedAThirdServerResponse result ->
       case result of
@@ -62,6 +60,12 @@ update msg model =
           ( { model | serverMessage = message.message }, Cmd.none )
         Err _ ->
           ( model, Cmd.none )
+
+
+fetchTime : (Posix -> Msg) -> Cmd Msg
+fetchTime tagger =
+  Time.now
+    |> Task.perform tagger
 
 
 sendServerRequest : (Result Http.Error ServerMessage -> Msg) -> Posix -> Cmd Msg
