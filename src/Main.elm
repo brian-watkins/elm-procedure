@@ -11,7 +11,8 @@ import Json.Encode as Encode
 
 
 type Msg
-  = DoThings
+  = CmdHolder (Cmd Msg)
+  | DoThings
   | ReceivedAThirdServerResponse (Result Http.Error ServerMessage)
 
 
@@ -41,9 +42,11 @@ view model =
   ]
 
 
-update : Msg -> Model -> (Model, Cmd AppMsg)
+update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
+    CmdHolder cmd ->
+      ( model, cmd )
     DoThings ->
       ( model
       , Time.now
@@ -57,10 +60,10 @@ update msg model =
           ( model, Cmd.none )
 
 
-superTagger : Posix -> AppMsg
+superTagger : Posix -> Msg
 superTagger time =
   sendServerRequest time
-    |> ChainedCmdHolder
+    |> CmdHolder
 
 
 sendServerRequest time =
@@ -68,12 +71,12 @@ sendServerRequest time =
     |> Http.send awesomeTagger
 
 
-awesomeTagger : Result Http.Error ServerMessage -> AppMsg
+awesomeTagger : Result Http.Error ServerMessage -> Msg
 awesomeTagger result =
   case result of
     Ok message ->
       sendAnotherServerRequest message.message
-        |> ChainedCmdHolder
+        |> CmdHolder
     Err _ ->
       Cmd.none
         |> CmdHolder
@@ -84,7 +87,7 @@ sendAnotherServerRequest message =
     |> Http.send sweetTagger
 
 
-sweetTagger : Result Http.Error ServerMessage -> AppMsg
+sweetTagger : Result Http.Error ServerMessage -> Msg
 sweetTagger result =
   case result of
     Ok message ->
@@ -121,38 +124,38 @@ messageDecoder =
 -------
 
 
-type AppMsg
-  = CmdHolder (Cmd Msg)
-  | ChainedCmdHolder (Cmd AppMsg)
-  | SubMsg Msg
+-- type AppMsg
+--   = CmdHolder (Cmd Msg)
+--   | ChainedCmdHolder (Cmd AppMsg)
+--   | SubMsg Msg
 
 
-type alias AppModel =
-  { subModel : Model
-  }
+-- type alias AppModel =
+--   { subModel : Model
+--   }
 
 
-defaultAppModel : AppModel
-defaultAppModel =
-  { subModel = defaultModel
-  }
+-- defaultAppModel : AppModel
+-- defaultAppModel =
+--   { subModel = defaultModel
+--   }
 
 
-appView : AppModel -> Html AppMsg
-appView model =
-  view model.subModel
-    |> Html.map SubMsg
+-- appView : AppModel -> Html AppMsg
+-- appView model =
+--   view model.subModel
+--     |> Html.map SubMsg
 
 
-appUpdate : AppMsg -> AppModel -> (AppModel, Cmd AppMsg)
-appUpdate msg model =
-  case msg of
-    CmdHolder cmd ->
-      (model, Cmd.map SubMsg cmd)
-    ChainedCmdHolder cmd ->
-      (model, cmd)
-    SubMsg subMsg ->
-      let
-        ( subModel, subCmd ) = update subMsg model.subModel    
-      in
-        ( { model | subModel = subModel }, subCmd )
+-- appUpdate : AppMsg -> AppModel -> (AppModel, Cmd AppMsg)
+-- appUpdate msg model =
+--   case msg of
+--     CmdHolder cmd ->
+--       (model, Cmd.map SubMsg cmd)
+--     ChainedCmdHolder cmd ->
+--       (model, cmd)
+--     SubMsg subMsg ->
+--       let
+--         ( subModel, subCmd ) = update subMsg model.subModel    
+--       in
+--         ( { model | subModel = subModel }, subCmd )

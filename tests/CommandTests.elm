@@ -22,7 +22,7 @@ timeTest =
   describe "time" <|
   let
     state =
-      Elmer.given App.defaultAppModel App.appView App.appUpdate
+      Elmer.given App.defaultModel App.view App.update
         |> Spy.use [ timeSpy 1515281017615, Http.serve [ serverStub, anotherServerStub, thirdServerStub ] ]
         |> Markup.target << by [ id "doThingsButton" ]
         |> Event.click
