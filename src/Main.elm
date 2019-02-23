@@ -9,9 +9,9 @@ import Http
 import Json.Decode as Json
 import Json.Encode as Encode
 
+
 type Msg
   = DoThings
-  | CurrentTime Posix
   | ReceivedServerResponse (Result Http.Error ServerMessage)
 
 
@@ -41,18 +41,13 @@ view model =
   ]
 
 
-update : Msg -> Model -> (Model, Cmd Msg)
+update : Msg -> Model -> (Model, Cmd AppMsg)
 update msg model =
   case msg of
     DoThings ->
       ( model
       , Time.now
-          |> Task.perform CurrentTime
-      )
-    CurrentTime time ->
-      ( model
-      , Http.post "http://funserver.com/api/fun" (requestBody time) messageDecoder
-          |> Http.send ReceivedServerResponse
+          |> Task.perform (superTagger)
       )
     ReceivedServerResponse result ->
       case result of
@@ -60,6 +55,17 @@ update msg model =
           ( { model | serverMessage = message.message }, Cmd.none )
         Err _ ->
           ( model, Cmd.none )
+
+
+superTagger : Posix -> AppMsg
+superTagger time =
+  sendServerRequest time
+    |> CmdHolder
+
+
+sendServerRequest time =
+  Http.post "http://funserver.com/api/fun" (requestBody time) messageDecoder
+    |> Http.send ReceivedServerResponse
 
 
 requestBody : Posix -> Http.Body
@@ -72,3 +78,49 @@ messageDecoder : Json.Decoder ServerMessage
 messageDecoder =
   Json.field "message" Json.string
     |> Json.map ServerMessage
+
+
+-------
+
+thenDo : (a -> Cmd Msg) -> a -> Cmd AppMsg
+thenDo tagger item =
+  tagger item
+    |> Task.succeed
+    |> Task.perform CmdHolder
+
+
+-------
+
+
+type AppMsg
+  = CmdHolder (Cmd Msg)
+  | SubMsg Msg
+
+
+type alias AppModel =
+  { subModel : Model
+  }
+
+
+defaultAppModel : AppModel
+defaultAppModel =
+  { subModel = defaultModel
+  }
+
+
+appView : AppModel -> Html AppMsg
+appView model =
+  view model.subModel
+    |> Html.map SubMsg
+
+
+appUpdate : AppMsg -> AppModel -> (AppModel, Cmd AppMsg)
+appUpdate msg model =
+  case msg of
+    CmdHolder cmd ->
+      (model, Cmd.map SubMsg cmd)
+    SubMsg subMsg ->
+      let
+        ( subModel, subCmd ) = update subMsg model.subModel    
+      in
+        ( { model | subModel = subModel }, subCmd )
