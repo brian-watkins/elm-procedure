@@ -13,6 +13,7 @@ import Json.Encode as Encode
 type Msg
   = DoThings
   | ReceivedAnotherServerResponse (Result Http.Error ServerMessage)
+  | ReceivedAThirdServerResponse (Result Http.Error ServerMessage)
 
 
 type alias ServerMessage =
@@ -52,6 +53,12 @@ update msg model =
     ReceivedAnotherServerResponse result ->
       case result of
         Ok message ->
+          ( model, Cmd.map SubMsg <| sendAThirdServerRequest message.message )
+        Err _ ->
+          ( model, Cmd.none )
+    ReceivedAThirdServerResponse result ->
+      case result of
+        Ok message ->
           ( { model | serverMessage = message.message }, Cmd.none )
         Err _ ->
           ( model, Cmd.none )
@@ -82,6 +89,17 @@ awesomeTagger result =
 sendAnotherServerRequest message =
   Http.get ("http://awesomeserver.com/api/awesome?message=" ++ message) messageDecoder
     |> Http.send ReceivedAnotherServerResponse
+
+
+sendAThirdServerRequest message =
+  Http.post ("http://sweetserver.com/api/sweet") (sweetRequestBody message) messageDecoder
+    |> Http.send ReceivedAThirdServerResponse
+
+
+sweetRequestBody : String -> Http.Body
+sweetRequestBody message =
+  Encode.object [ ("code", Encode.string message) ]
+    |> Http.jsonBody
 
 
 requestBody : Posix -> Http.Body

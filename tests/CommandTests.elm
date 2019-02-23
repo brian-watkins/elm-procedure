@@ -23,7 +23,7 @@ timeTest =
   let
     state =
       Elmer.given App.defaultAppModel App.appView App.appUpdate
-        |> Spy.use [ timeSpy 1515281017615, Http.serve [ serverStub, anotherServerStub ] ]
+        |> Spy.use [ timeSpy 1515281017615, Http.serve [ serverStub, anotherServerStub, thirdServerStub ] ]
         |> Markup.target << by [ id "doThingsButton" ]
         |> Event.click
   in  
@@ -38,6 +38,12 @@ timeTest =
       state
         |> Http.expect (Route.get "http://awesomeserver.com/api/awesome") (
           Elmer.atIndex 0 <| hasQueryParam ("message", "some-key")
+        )
+  , test "it passes the second response to a third request" <|
+    \() ->
+      state
+        |> Http.expect (Route.post "http://sweetserver.com/api/sweet") (
+          Elmer.atIndex 0 <| hasBody ("{\"code\":\"awesome-key\"}")
         )
   , test "it prints the response message" <|
     \() ->
@@ -62,6 +68,13 @@ serverStub =
 anotherServerStub : HttpResponseStub
 anotherServerStub =
   Stub.for (Route.get "http://awesomeserver.com/api/awesome")
+    |> withStatus Status.ok
+    |> withBody "{\"message\":\"awesome-key\"}"
+
+
+thirdServerStub : HttpResponseStub
+thirdServerStub =
+  Stub.for (Route.post "http://sweetserver.com/api/sweet")
     |> withStatus Status.ok
     |> withBody "{\"message\":\"Cool Server Message!\"}"
 
