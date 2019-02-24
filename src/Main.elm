@@ -49,10 +49,11 @@ update msg model =
       ( model, cmd )
     DoThings ->
       ( model
-      , fetchTime <| thenDo <|
-          sendServerRequest <| thenDo <|
-          sendAwesomeRequest <| thenDo <|
-          sendSweetRequest ReceivedAThirdServerResponse
+      , startAction fetchTime
+          |> thenDoAction sendServerRequest
+          |> thenDoAction sendAwesomeRequest
+          |> thenDoAction sendSweetRequest
+          |> performAction ReceivedAThirdServerResponse
       )
     ReceivedAThirdServerResponse result ->
       case result of
@@ -68,14 +69,14 @@ fetchTime tagger =
     |> Task.perform tagger
 
 
-sendServerRequest : (Result Http.Error ServerMessage -> Msg) -> Posix -> Cmd Msg
-sendServerRequest tagger time =
+sendServerRequest : Posix -> (Result Http.Error ServerMessage -> Msg) -> Cmd Msg
+sendServerRequest time tagger =
   Http.post "http://funserver.com/api/fun" (requestBody time) messageDecoder
     |> Http.send tagger
 
 
-sendAwesomeRequest : (Result Http.Error ServerMessage -> Msg) -> Result Http.Error ServerMessage -> Cmd Msg
-sendAwesomeRequest tagger result =
+sendAwesomeRequest : Result Http.Error ServerMessage -> (Result Http.Error ServerMessage -> Msg) -> Cmd Msg
+sendAwesomeRequest result tagger =
   case result of
     Ok message ->
       Http.get ("http://awesomeserver.com/api/awesome?message=" ++ message.message) messageDecoder
@@ -84,8 +85,8 @@ sendAwesomeRequest tagger result =
       Cmd.none
 
 
-sendSweetRequest : (Result Http.Error ServerMessage -> Msg) -> Result Http.Error ServerMessage -> Cmd Msg
-sendSweetRequest tagger result =
+sendSweetRequest : Result Http.Error ServerMessage -> (Result Http.Error ServerMessage -> Msg) -> Cmd Msg
+sendSweetRequest result tagger =
   case result of
     Ok message ->
       Http.post ("http://sweetserver.com/api/sweet") (sweetRequestBody message.message) messageDecoder
@@ -114,10 +115,29 @@ messageDecoder =
 
 -------
 
-thenDo : (a -> Cmd Msg) -> a -> Msg
-thenDo generator data =
-  generator data
-    |> CmdHolder
+type alias Action a =
+  { generator : (a -> Msg) -> Cmd Msg
+  }
+
+startAction : ((a -> Msg) -> Cmd Msg) -> Action a
+startAction generator =
+  { generator = generator
+  }
+
+thenDoAction : (a -> ((b -> Msg) -> Cmd Msg)) -> Action a -> Action b
+thenDoAction mapper action =
+  { generator = \bTagger -> 
+      action.generator <|
+        \aData -> 
+          bTagger 
+            |> mapper aData 
+            |> CmdHolder
+  }
+
+performAction : (a -> Msg) -> Action a -> Cmd Msg
+performAction tagger action =
+  action.generator tagger
+
 
 
 -- type AppMsg
