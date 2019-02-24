@@ -53,7 +53,7 @@ update msg model =
           |> thenDoAction sendServerRequest
           |> thenDoAction sendAwesomeRequest
           |> thenDoAction sendSweetRequest
-          |> performAction ReceivedAThirdServerResponse
+          |> performAction CmdHolder ReceivedAThirdServerResponse
       )
     ReceivedAThirdServerResponse result ->
       case result of
@@ -115,28 +115,26 @@ messageDecoder =
 
 -------
 
-type alias Action a =
-  { generator : (a -> Msg) -> Cmd Msg
-  }
+type alias Action a msg =
+  (Cmd msg -> msg) -> (a -> msg) -> Cmd msg
 
-startAction : ((a -> Msg) -> Cmd Msg) -> Action a
+startAction : ((a -> msg) -> Cmd msg) -> Action a msg
 startAction generator =
-  { generator = generator
-  }
+  \_ tagger ->
+    generator tagger
 
-thenDoAction : (a -> ((b -> Msg) -> Cmd Msg)) -> Action a -> Action b
+thenDoAction : (a -> ((b -> msg) -> Cmd msg)) -> Action a msg -> Action b msg
 thenDoAction mapper action =
-  { generator = \bTagger -> 
-      action.generator <|
-        \aData -> 
-          bTagger 
-            |> mapper aData 
-            |> CmdHolder
-  }
+  \cmdTagger bTagger -> 
+    action cmdTagger <|
+      \aData -> 
+        bTagger 
+          |> mapper aData
+          |> cmdTagger
 
-performAction : (a -> Msg) -> Action a -> Cmd Msg
-performAction tagger action =
-  action.generator tagger
+performAction : (Cmd msg -> msg) -> (a -> msg) -> Action a msg -> Cmd msg
+performAction cmdTagger tagger action =
+  action cmdTagger tagger
 
 
 
