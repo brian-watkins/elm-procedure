@@ -1,4 +1,4 @@
-module CommandTests exposing (..)
+module ActionTests exposing (..)
 
 import Expect
 import Test exposing (..)
@@ -13,12 +13,13 @@ import Elmer.Http.Status as Status
 import Elmer.Http.Route as Route
 import Elmer.Http.Matchers exposing (hasBody, hasQueryParam)
 import Elmer.Spy as Spy
-import Main as App
+import TestApp as App
 import Task
 import Time
 
-timeTest : Test
-timeTest =
+
+actionTest : Test
+actionTest =
   describe "time" <|
   let
     state =

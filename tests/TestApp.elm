@@ -1,4 +1,4 @@
-module Main exposing (..)
+module TestApp exposing (..)
 
 import Html exposing (Html)
 import Html.Attributes as Attr
@@ -8,12 +8,13 @@ import Task
 import Http
 import Json.Decode as Json
 import Json.Encode as Encode
+import Action
 
 
 type Msg
-  = CmdHolder (Cmd Msg)
+  = Send (Cmd Msg)
   | DoThings
-  | ReceivedAThirdServerResponse (Result Http.Error ServerMessage)
+  | ReceivedResponse (Result Http.Error ServerMessage)
 
 
 type alias ServerMessage =
@@ -45,17 +46,17 @@ view model =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    CmdHolder cmd ->
+    Send cmd ->
       ( model, cmd )
     DoThings ->
       ( model
-      , startAction fetchTime
-          |> thenDoAction sendServerRequest
-          |> thenDoAction sendAwesomeRequest
-          |> thenDoAction sendSweetRequest
-          |> performAction CmdHolder ReceivedAThirdServerResponse
+      , Action.with fetchTime
+          |> Action.andThen sendServerRequest
+          |> Action.andThen sendAwesomeRequest
+          |> Action.andThen sendSweetRequest
+          |> Action.perform Send ReceivedResponse
       )
-    ReceivedAThirdServerResponse result ->
+    ReceivedResponse result ->
       case result of
         Ok message ->
           ( { model | serverMessage = message.message }, Cmd.none )
@@ -112,64 +113,3 @@ messageDecoder =
   Json.field "message" Json.string
     |> Json.map ServerMessage
 
-
--------
-
-type alias Action a msg =
-  (Cmd msg -> msg) -> (a -> msg) -> Cmd msg
-
-startAction : ((a -> msg) -> Cmd msg) -> Action a msg
-startAction generator =
-  \_ tagger ->
-    generator tagger
-
-thenDoAction : (a -> ((b -> msg) -> Cmd msg)) -> Action a msg -> Action b msg
-thenDoAction mapper action =
-  \cmdTagger bTagger -> 
-    action cmdTagger <|
-      \aData -> 
-        bTagger 
-          |> mapper aData
-          |> cmdTagger
-
-performAction : (Cmd msg -> msg) -> (a -> msg) -> Action a msg -> Cmd msg
-performAction cmdTagger tagger action =
-  action cmdTagger tagger
-
-
-
--- type AppMsg
---   = CmdHolder (Cmd Msg)
---   | ChainedCmdHolder (Cmd AppMsg)
---   | SubMsg Msg
-
-
--- type alias AppModel =
---   { subModel : Model
---   }
-
-
--- defaultAppModel : AppModel
--- defaultAppModel =
---   { subModel = defaultModel
---   }
-
-
--- appView : AppModel -> Html AppMsg
--- appView model =
---   view model.subModel
---     |> Html.map SubMsg
-
-
--- appUpdate : AppMsg -> AppModel -> (AppModel, Cmd AppMsg)
--- appUpdate msg model =
---   case msg of
---     CmdHolder cmd ->
---       (model, Cmd.map SubMsg cmd)
---     ChainedCmdHolder cmd ->
---       (model, cmd)
---     SubMsg subMsg ->
---       let
---         ( subModel, subCmd ) = update subMsg model.subModel    
---       in
---         ( { model | subModel = subModel }, subCmd )
