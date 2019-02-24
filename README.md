@@ -1,6 +1,6 @@
-# Elm-Action
+# Elm-Procedure
 
-A project that does things. 
+Chain commands to form a procedure.
 
 ### Development
 

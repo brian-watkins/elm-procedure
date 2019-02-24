@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "compile": "ELM_HOME=$(pwd)/node_modules/elmer-test/home elm",
+    "compile": "ELM_HOME=$(pwd)/node_modules/elmer-test/home elm make",
     "test": "ELM_HOME=$(pwd)/node_modules/elmer-test/home elm-test"
   },
   "keywords": [],

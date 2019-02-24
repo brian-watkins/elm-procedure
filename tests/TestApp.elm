@@ -8,7 +8,7 @@ import Task
 import Http
 import Json.Decode as Json
 import Json.Encode as Encode
-import Action
+import Procedure
 
 
 type Msg
@@ -50,11 +50,11 @@ update msg model =
       ( model, cmd )
     DoThings ->
       ( model
-      , Action.with fetchTime
-          |> Action.andThen sendServerRequest
-          |> Action.andThen sendAwesomeRequest
-          |> Action.andThen sendSweetRequest
-          |> Action.perform Send ReceivedResponse
+      , Procedure.first fetchTime
+          |> Procedure.andThen sendServerRequest
+          |> Procedure.andThen sendAwesomeRequest
+          |> Procedure.andThen sendSweetRequest
+          |> Procedure.perform Send ReceivedResponse
       )
     ReceivedResponse result ->
       case result of
