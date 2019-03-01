@@ -2,8 +2,11 @@ module Procedure exposing
   ( Step
   , first
   , andThen
+  , map
   , perform
   )
+
+import Task
 
 
 type alias Step a msg =
@@ -24,6 +27,16 @@ andThen mapper step =
         bTagger 
           |> mapper aData
           |> cmdTagger
+
+
+map : (a -> b) -> Step a msg -> Step b msg
+map mapper step =
+  step
+    |> andThen (\aData tagger ->
+        mapper aData
+          |> Task.succeed
+          |> Task.perform tagger
+    )
 
 
 perform : (Cmd msg -> msg) -> (a -> msg) -> Step a msg -> Cmd msg
