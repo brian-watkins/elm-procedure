@@ -3,6 +3,7 @@ module Procedure exposing
   , first
   , andThen
   , map
+  , sequence
   , perform
   )
 
@@ -27,6 +28,28 @@ andThen mapper step =
         bTagger 
           |> mapper aData
           |> cmdTagger
+
+
+sequence : List ((a -> msg) -> Cmd msg) -> Step (List a) msg
+sequence generators =
+  case generators of
+    [] ->
+      emptyStep
+    gen :: gens ->
+      List.foldl (andThen << addToList) (first <| addToList gen []) gens
+
+
+addToList : ((a -> msg) -> Cmd msg) -> List a -> (List a -> msg) -> Cmd msg
+addToList generator collector tagger =
+  generator <| \aData ->
+    aData :: []
+      |> List.append collector
+      |> tagger
+
+
+emptyStep : Step a msg
+emptyStep _ _ =
+  Cmd.none
 
 
 map : (a -> b) -> Step a msg -> Step b msg
