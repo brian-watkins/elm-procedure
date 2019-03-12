@@ -51,9 +51,9 @@ update msg model =
     DoThings ->
       ( model
       , Procedure.first fetchTime
-          |> Procedure.andThen sendServerRequest
-          |> Procedure.andThen sendAwesomeRequest
-          |> Procedure.andThen sendSweetRequest
+          |> Procedure.andThen (Procedure.first << sendServerRequest)
+          |> Procedure.andThen (Procedure.first << sendAwesomeRequest)
+          |> Procedure.andThen (Procedure.first << sendSweetRequest)
           |> Procedure.perform Send ReceivedResponse
       )
     ReceivedResponse result ->

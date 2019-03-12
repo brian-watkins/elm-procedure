@@ -17,7 +17,11 @@ sequenceTests =
       Elmer.given testModel emptyView testUpdate
         |> Spy.use [ stringCommandSpy, intCommandSpy ]
         |> Command.send (\_ -> 
-            Procedure.sequence [ fakeStringCommand "Awesome", fakeStringCommand "fun", fakeStringCommand "stuff!!!" ]
+            Procedure.sequence 
+              [ Procedure.first <| fakeStringCommand "Awesome"
+              , Procedure.first <| fakeStringCommand "fun"
+              , Procedure.first <| fakeStringCommand "stuff!!!"
+              ]
               |> Procedure.map (\results -> String.join ", " results)
               |> Procedure.perform CmdTagger TestTagger
           )

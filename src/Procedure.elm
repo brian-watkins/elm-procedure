@@ -20,31 +20,32 @@ first generator =
     generator tagger
 
 
-andThen : (a -> ((b -> msg) -> Cmd msg)) -> Step a msg -> Step b msg
+andThen : (a -> Step b msg) -> Step a msg -> Step b msg
 andThen mapper step =
   \cmdTagger bTagger -> 
     step cmdTagger <|
       \aData -> 
         bTagger 
-          |> mapper aData
+          |> mapper aData cmdTagger
           |> cmdTagger
 
 
-sequence : List ((a -> msg) -> Cmd msg) -> Step (List a) msg
-sequence generators =
-  case generators of
+sequence : List (Step a msg) -> Step (List a) msg
+sequence steps =
+  case steps of
     [] ->
       emptyStep
-    gen :: gens ->
-      List.foldl (andThen << addToList) (first <| addToList gen []) gens
+    step :: remainingSteps ->
+      List.foldl (andThen << addToList) (addToList step []) remainingSteps
 
 
-addToList : ((a -> msg) -> Cmd msg) -> List a -> (List a -> msg) -> Cmd msg
-addToList generator collector tagger =
-  generator <| \aData ->
-    aData :: []
-      |> List.append collector
-      |> tagger
+addToList : Step a msg -> List a -> Step (List a) msg
+addToList step collector =
+  \cmdTagger listTagger ->
+    step cmdTagger <| \aData ->
+      aData :: []
+        |> List.append collector
+        |> listTagger
 
 
 emptyStep : Step a msg
@@ -55,7 +56,7 @@ emptyStep _ _ =
 map : (a -> b) -> Step a msg -> Step b msg
 map mapper step =
   step
-    |> andThen (\aData tagger ->
+    |> andThen (\aData _ tagger ->
         mapper aData
           |> Task.succeed
           |> Task.perform tagger
