@@ -18,9 +18,9 @@ sequenceTests =
         |> Spy.use [ stringCommandSpy, intCommandSpy ]
         |> Command.send (\_ -> 
             Procedure.sequence 
-              [ Procedure.first <| fakeStringCommand "Awesome"
-              , Procedure.first <| fakeStringCommand "fun"
-              , Procedure.first <| fakeStringCommand "stuff!!!"
+              [ Procedure.do <| fakeStringCommand "Awesome"
+              , Procedure.do <| fakeStringCommand "fun"
+              , Procedure.do <| fakeStringCommand "stuff!!!"
               ]
               |> Procedure.map (\results -> String.join ", " results)
               |> Procedure.perform CmdTagger TestTagger

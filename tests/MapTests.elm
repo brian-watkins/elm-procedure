@@ -17,9 +17,9 @@ mapTests =
       Elmer.given testModel emptyView testUpdate
         |> Spy.use [ stringCommandSpy, intCommandSpy ]
         |> Command.send (\_ -> 
-            Procedure.first (fakeIntCommand 27)
+            Procedure.do (fakeIntCommand 27)
               |> Procedure.map (\result -> "Mapped: " ++ String.fromInt result)
-              |> Procedure.andThen (\result -> Procedure.first <| fakeStringCommand <| result ++ "!!!")
+              |> Procedure.andThen (\result -> Procedure.do <| fakeStringCommand <| result ++ "!!!")
               |> Procedure.perform CmdTagger TestTagger
           )
         |> expectMappedValue "Mapped: 27!!!"

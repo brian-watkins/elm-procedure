@@ -1,6 +1,6 @@
 module Procedure exposing
   ( Step
-  , first
+  , do
   , andThen
   , map
   , sequence
@@ -14,19 +14,18 @@ type alias Step a msg =
   (Cmd msg -> msg) -> (a -> msg) -> Cmd msg
 
 
-first : ((a -> msg) -> Cmd msg) -> Step a msg
-first generator =
+do : ((a -> msg) -> Cmd msg) -> Step a msg
+do generator =
   \_ tagger ->
     generator tagger
 
 
 andThen : (a -> Step b msg) -> Step a msg -> Step b msg
-andThen mapper step =
+andThen stepGenerator step =
   \cmdTagger bTagger -> 
     step cmdTagger <|
       \aData -> 
-        bTagger 
-          |> mapper aData cmdTagger
+        stepGenerator aData cmdTagger bTagger
           |> cmdTagger
 
 

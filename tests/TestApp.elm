@@ -50,10 +50,10 @@ update msg model =
       ( model, cmd )
     DoThings ->
       ( model
-      , Procedure.first fetchTime
-          |> Procedure.andThen (Procedure.first << sendServerRequest)
-          |> Procedure.andThen (Procedure.first << sendAwesomeRequest)
-          |> Procedure.andThen (Procedure.first << sendSweetRequest)
+      , Procedure.do fetchTime
+          |> Procedure.andThen (Procedure.do << sendServerRequest)
+          |> Procedure.andThen (Procedure.do << sendAwesomeRequest)
+          |> Procedure.andThen (Procedure.do << sendSweetRequest)
           |> Procedure.perform Send ReceivedResponse
       )
     ReceivedResponse result ->
