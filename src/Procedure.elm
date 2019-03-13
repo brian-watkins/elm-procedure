@@ -1,6 +1,7 @@
 module Procedure exposing
   ( Step
   , do
+  , send
   , andThen
   , map
   , sequence
@@ -18,6 +19,14 @@ do : ((a -> msg) -> Cmd msg) -> Step a msg
 do generator =
   \_ tagger ->
     generator tagger
+
+
+send : a -> Step a msg
+send value =
+  do <|
+    \tagger ->
+      Task.succeed value
+        |> Task.perform tagger
 
 
 andThen : (a -> Step b msg) -> Step a msg -> Step b msg
@@ -55,11 +64,7 @@ emptyStep _ _ =
 map : (a -> b) -> Step a msg -> Step b msg
 map mapper step =
   step
-    |> andThen (\aData _ tagger ->
-        mapper aData
-          |> Task.succeed
-          |> Task.perform tagger
-    )
+    |> andThen (send << mapper)
 
 
 perform : (Cmd msg -> msg) -> (a -> msg) -> Step a msg -> Cmd msg
