@@ -1,4 +1,4 @@
-module SendTests exposing (..)
+module BreakTests exposing (..)
 
 import Expect
 import Test exposing (..)
@@ -9,27 +9,28 @@ import Html exposing (Html)
 import Procedure
 
 
-sendTests : Test
-sendTests =
-  describe "when send is used"
-  [ test "it sends the value" <|
+breakTests : Test
+breakTests =
+  describe "when break is used"
+  [ test "it sends the value, and skips any remaining steps" <|
     \() -> 
       Elmer.given testModel emptyView testUpdate
         |> Spy.use [ stringCommandSpy ]
         |> Command.send (\_ -> 
             Procedure.do (fakeStringCommand "First")
-              |> Procedure.andThen (\result -> Procedure.send <| result ++ ", Sent!")
-              |> Procedure.andThen (\result -> Procedure.do <| fakeStringCommand <| result ++ ", Third")
-              |> Procedure.run CmdTagger TestTagger
+              |> Procedure.andThen (\result -> Procedure.break <| result ++ ", Break!")
+              |> Procedure.andThen (\result -> Procedure.send <| result + 28)
+              |> Procedure.map (\result -> String.fromInt result ++ " mapped!")
+              |> Procedure.try CmdTagger TestTagger
           )
-        |> expectMappedValue "First, Sent!, Third"
+        |> expectError "First, Break!"
   ]
 
-expectMappedValue : String -> TestState Model Msg -> Expect.Expectation
-expectMappedValue expected testState =
+expectError : String -> TestState Model Msg -> Expect.Expectation
+expectError expected testState =
   testState
     |> Elmer.expectModel (\model ->
-        Expect.equal model.message expected
+        Expect.equal model.error expected
     )
 
 stringCommandSpy : Spy
@@ -45,14 +46,16 @@ fakeStringCommand _ _ =
 
 type Msg
   = CmdTagger (Cmd Msg)
-  | TestTagger String
+  | TestTagger (Result String String)
 
 type alias Model =
   { message : String
+  , error : String
   }
 
 testModel =
   { message = ""
+  , error = ""
   }
 
 testUpdate : Msg -> Model -> (Model, Cmd Msg)
@@ -61,7 +64,11 @@ testUpdate msg model =
     CmdTagger cmd ->
       (model, cmd)
     TestTagger value ->
-      ({ model | message = value }, Cmd.none)
+      case value of
+        Ok data ->
+          ({ model | message = data }, Cmd.none)
+        Err data ->
+          ({ model | error = data }, Cmd.none)
 
 emptyView : Model -> Html Msg
 emptyView _ =

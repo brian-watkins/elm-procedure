@@ -20,7 +20,7 @@ mapTests =
             Procedure.do (fakeIntCommand 27)
               |> Procedure.map (\result -> "Mapped: " ++ String.fromInt result)
               |> Procedure.andThen (\result -> Procedure.do <| fakeStringCommand <| result ++ "!!!")
-              |> Procedure.perform CmdTagger TestTagger
+              |> Procedure.run CmdTagger TestTagger
           )
         |> expectMappedValue "Mapped: 27!!!"
   ]

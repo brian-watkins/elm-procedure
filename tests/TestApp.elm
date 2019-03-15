@@ -54,7 +54,7 @@ update msg model =
           |> Procedure.andThen (Procedure.do << sendServerRequest)
           |> Procedure.andThen (Procedure.do << sendAwesomeRequest)
           |> Procedure.andThen (Procedure.do << sendSweetRequest)
-          |> Procedure.perform Send ReceivedResponse
+          |> Procedure.run Send ReceivedResponse
       )
     ReceivedResponse result ->
       case result of
