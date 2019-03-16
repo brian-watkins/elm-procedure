@@ -17,7 +17,7 @@ mapTests =
             Procedure.do (Helpers.intCommand 27)
               |> Procedure.map (\result -> "Mapped: " ++ String.fromInt result)
               |> Procedure.andThen (\result -> Procedure.do <| Helpers.stringCommand <| result ++ "!!!")
-              |> Procedure.run CmdTagger TestStringTagger
+              |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Helpers.expectValue "Mapped: 27!!!"
   ]

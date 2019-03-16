@@ -12,7 +12,7 @@ import Procedure
 
 
 type Msg
-  = Send (Cmd Msg)
+  = ProcedureTagger (Procedure.Msg Msg)
   | DoThings
   | ReceivedResponse (Result Http.Error ServerMessage)
 
@@ -23,13 +23,15 @@ type alias ServerMessage =
 
 
 type alias Model =
-  { serverMessage: String
+  { procedureModel: Procedure.Model Msg
+  , serverMessage: String
   }
 
 
 defaultModel : Model
 defaultModel =
-  { serverMessage = "Nothing"
+  { procedureModel = Procedure.defaultModel
+  , serverMessage = "Nothing"
   }
 
 
@@ -46,15 +48,16 @@ view model =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    Send cmd ->
-      ( model, cmd )
+    ProcedureTagger pMsg ->
+      Procedure.update pMsg model.procedureModel
+        |> Tuple.mapFirst (\updatedModel -> { model | procedureModel = updatedModel })
     DoThings ->
       ( model
       , Procedure.do fetchTime
           |> Procedure.andThen (Procedure.do << sendServerRequest)
           |> Procedure.andThen (Procedure.do << sendAwesomeRequest)
           |> Procedure.andThen (Procedure.do << sendSweetRequest)
-          |> Procedure.run Send ReceivedResponse
+          |> Procedure.run ProcedureTagger ReceivedResponse
       )
     ReceivedResponse result ->
       case result of

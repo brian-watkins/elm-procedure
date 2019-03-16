@@ -17,7 +17,7 @@ sendTests =
             Procedure.do (Helpers.stringCommand "First")
               |> Procedure.andThen (\result -> Procedure.send <| result ++ ", Sent!")
               |> Procedure.andThen (\result -> Procedure.do <| Helpers.stringCommand <| result ++ ", Third")
-              |> Procedure.run CmdTagger TestStringTagger
+              |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Helpers.expectValue "First, Sent!, Third"
   ]

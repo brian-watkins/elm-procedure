@@ -1,5 +1,8 @@
 module Procedure exposing
-  ( Step
+  ( Msg
+  , Model
+  , Step
+  , defaultModel
   , do
   , send
   , break
@@ -8,6 +11,9 @@ module Procedure exposing
   , map
   , mapError
   , sequence
+  , waitFor
+  , subscriptions
+  , update
   , try
   , run
   )
@@ -16,7 +22,7 @@ import Task
 
 
 type alias Step e a msg =
-  (Cmd msg -> msg) -> (Result e a -> msg) -> Cmd msg
+  (Msg msg -> msg) -> (Result e a -> msg) -> Cmd msg
 
 
 do : ((a -> msg) -> Cmd msg) -> Step e a msg
@@ -26,6 +32,14 @@ do generator =
       \aData ->
         Ok aData
           |> tagger
+
+
+waitFor : ((a -> msg) -> Sub msg) -> Step e a msg
+waitFor generator =
+  \msgTagger resultTagger ->
+    generator (resultTagger << Ok)
+      |> Task.succeed
+      |> Task.perform (msgTagger << SubTagger)
 
 
 send : a -> Step e a msg
@@ -111,24 +125,56 @@ mapError mapper step =
 
 next : Step e a msg -> (Result e a -> Step f b msg) -> Step f b msg
 next step resultMapper =
-  \cmdTagger tagger ->
-    step cmdTagger <|
+  \msgTagger tagger ->
+    step msgTagger <|
       \aResult ->
-        (resultMapper aResult) cmdTagger tagger
-          |> cmdTagger
+        (resultMapper aResult) msgTagger tagger
+          |> msgTagger << CmdTagger
 
 
-try : (Cmd msg -> msg) -> (Result e a -> msg) -> Step e a msg -> Cmd msg
-try cmdTagger tagger step =
-  step cmdTagger tagger
+try : (Msg msg -> msg) -> (Result e a -> msg) -> Step e a msg -> Cmd msg
+try pTagger tagger step =
+  step pTagger tagger
 
 
-run : (Cmd msg -> msg) -> (a -> msg) -> Step Never a msg -> Cmd msg
-run cmdTagger tagger step =
-  try cmdTagger (\result ->
+run : (Msg msg -> msg) -> (a -> msg) -> Step Never a msg -> Cmd msg
+run pTagger tagger step =
+  try pTagger (\result ->
     case result of
       Ok data ->
         tagger data
       Err e ->
         never e
   ) step
+
+
+-----
+
+type alias Model msg =
+  { subscriptions : Sub msg
+  }
+
+
+defaultModel : Model msg
+defaultModel =
+  { subscriptions = Sub.none
+  }
+
+
+type Msg msg
+  = CmdTagger (Cmd msg)
+  | SubTagger (Sub msg)
+
+
+update : Msg msg -> Model msg -> (Model msg, Cmd msg)
+update msg model =
+  case msg of
+    CmdTagger cmd ->
+      ( { model | subscriptions = Sub.none }, cmd )
+    SubTagger sub ->
+      ( { model | subscriptions = sub }, Cmd.none )
+
+
+subscriptions : Model msg -> Sub msg
+subscriptions model =
+  model.subscriptions

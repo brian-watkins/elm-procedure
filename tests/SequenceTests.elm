@@ -20,7 +20,7 @@ sequenceTests =
               , Procedure.do <| Helpers.stringCommand "stuff!!!"
               ]
               |> Procedure.map (\results -> String.join ", " results)
-              |> Procedure.run CmdTagger TestStringTagger
+              |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Helpers.expectValue "Awesome, fun, stuff!!!"
   ]
@@ -39,7 +39,7 @@ breakTests =
               , Procedure.do <| Helpers.stringCommand "more stuff!!!"
               ]
               |> Procedure.map (\results -> String.join ", " results)
-              |> Procedure.try CmdTagger TestResultTagger
+              |> Procedure.try ProcedureTagger TestResultTagger
           )
         |> Helpers.expectError "Break!?"
   ]

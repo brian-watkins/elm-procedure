@@ -18,7 +18,7 @@ breakTests =
               |> Procedure.andThen (\result -> Procedure.break <| result ++ ", Break!")
               |> Procedure.andThen (\result -> Procedure.send <| result + 28)
               |> Procedure.map (\result -> String.fromInt result ++ " mapped!")
-              |> Procedure.try CmdTagger TestResultTagger
+              |> Procedure.try ProcedureTagger TestResultTagger
           )
         |> Helpers.expectError "First, Break!"
   ]
@@ -36,7 +36,7 @@ mapErrorTests =
                 |> Procedure.andThen (\result -> Procedure.send <| result + 28)
                 |> Procedure.map (\result -> String.fromInt result ++ " mapped!")
                 |> Procedure.mapError (\error -> "Mapped error: " ++ error)
-                |> Procedure.try CmdTagger TestResultTagger
+                |> Procedure.try ProcedureTagger TestResultTagger
             )
           |> Helpers.expectError "Mapped error: First, Break!"
     ]
@@ -48,7 +48,7 @@ mapErrorTests =
               Procedure.do (Helpers.stringCommand "First")
                 |> Procedure.map (\result -> result ++ " mapped!")
                 |> Procedure.mapError (\error -> "Mapped error: " ++ error)
-                |> Procedure.try CmdTagger TestResultTagger
+                |> Procedure.try ProcedureTagger TestResultTagger
             )
           |> Helpers.expectValue "First mapped!"
     ]
@@ -68,7 +68,7 @@ catchTests =
               |> Procedure.andThen (\result -> Procedure.send <| result + 28)
               |> Procedure.map (\result -> String.fromInt result ++ " mapped!")
               |> Procedure.catch (\error -> Procedure.do <| Helpers.stringCommand <| "Recovered from error: " ++ error)
-              |> Procedure.try CmdTagger TestResultTagger
+              |> Procedure.try ProcedureTagger TestResultTagger
             )
           |> Helpers.expectValue "Recovered from error: First, Break!"
     ]
@@ -82,7 +82,7 @@ catchTests =
               |> Procedure.andThen (\result -> Procedure.send <| result + 28)
               |> Procedure.map (\result -> String.fromInt result ++ " mapped!")
               |> Procedure.catch (\error -> Procedure.do <| Helpers.stringCommand <| "Recovered from error: " ++ error)
-              |> Procedure.try CmdTagger TestResultTagger
+              |> Procedure.try ProcedureTagger TestResultTagger
             )
           |> Helpers.expectValue "33 mapped!"
     ]
