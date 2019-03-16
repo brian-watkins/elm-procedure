@@ -2,10 +2,7 @@ module MapTests exposing (..)
 
 import Expect
 import Test exposing (..)
-import Elmer exposing (TestState)
 import Elmer.Command as Command
-import Elmer.Spy as Spy exposing (Spy, andCallFake)
-import Html exposing (Html)
 import TestHelpers as Helpers exposing (Msg(..))
 import Procedure
 
