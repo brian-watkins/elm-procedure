@@ -5,6 +5,7 @@ module Procedure exposing
   , break
   , andThen
   , map
+  , mapError
   , sequence
   , try
   , run
@@ -90,6 +91,20 @@ emptyStep _ _ =
 map : (a -> b) -> Step e a msg -> Step e b msg
 map mapper =
   andThen (send << mapper)
+
+
+mapError : (e -> f) -> Step e a msg -> Step f a msg
+mapError mapper step =
+  \cmdTagger tagger ->
+    step cmdTagger <|
+      \aResult ->
+        case aResult of
+          Ok aData ->
+            send aData cmdTagger tagger
+              |> cmdTagger
+          Err eData ->
+            break (mapper eData) cmdTagger tagger
+              |> cmdTagger
 
 
 try : (Cmd msg -> msg) -> (Result e a -> msg) -> Step e a msg -> Cmd msg
