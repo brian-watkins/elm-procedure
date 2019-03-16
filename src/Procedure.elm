@@ -3,6 +3,7 @@ module Procedure exposing
   , do
   , send
   , break
+  , catch
   , andThen
   , map
   , mapError
@@ -39,24 +40,29 @@ break : e -> Step e a msg
 break value =
   \_ tagger ->
     Task.succeed value
-      |> Task.perform (\eData -> 
-        Err eData
-          |> tagger
-      )
+      |> Task.perform (tagger << Err)
+
+
+catch : (e -> Step f a msg) -> Step e a msg -> Step f a msg
+catch stepGenerator step =
+  next step <|
+    \aResult ->
+      case aResult of
+        Ok aData ->
+          send aData
+        Err eData ->
+          stepGenerator eData
 
 
 andThen : (a -> Step e b msg) -> Step e a msg -> Step e b msg
 andThen stepGenerator step =
-  \cmdTagger bTagger ->
-    step cmdTagger <|
-      \aResult ->
-        case aResult of
-          Ok aData ->
-            stepGenerator aData cmdTagger bTagger
-              |> cmdTagger
-          Err eData ->
-            break eData cmdTagger bTagger
-              |> cmdTagger
+  next step <|
+    \aResult ->
+      case aResult of
+        Ok aData ->
+          stepGenerator aData
+        Err eData ->
+          break eData
 
 
 sequence : List (Step e a msg) -> Step e (List a) msg
@@ -70,17 +76,15 @@ sequence steps =
 
 addToList : Step e a msg -> List a -> Step e (List a) msg
 addToList step collector =
-  \cmdTagger listTagger ->
-    step cmdTagger <| \aResult ->
+  next step <|
+    \aResult ->
       case aResult of
         Ok aData ->
           aData :: []
             |> List.append collector
-            |> Ok
-            |> listTagger
+            |> send
         Err eData ->
-          break eData cmdTagger listTagger
-            |> cmdTagger
+          break eData
 
 
 emptyStep : Step e a msg
@@ -95,16 +99,23 @@ map mapper =
 
 mapError : (e -> f) -> Step e a msg -> Step f a msg
 mapError mapper step =
+  next step <|
+    \aResult ->
+      case aResult of
+        Ok aData ->
+          send aData
+        Err eData ->
+          mapper eData
+            |> break
+
+
+next : Step e a msg -> (Result e a -> Step f b msg) -> Step f b msg
+next step resultMapper =
   \cmdTagger tagger ->
     step cmdTagger <|
       \aResult ->
-        case aResult of
-          Ok aData ->
-            send aData cmdTagger tagger
-              |> cmdTagger
-          Err eData ->
-            break (mapper eData) cmdTagger tagger
-              |> cmdTagger
+        (resultMapper aResult) cmdTagger tagger
+          |> cmdTagger
 
 
 try : (Cmd msg -> msg) -> (Result e a -> msg) -> Step e a msg -> Cmd msg

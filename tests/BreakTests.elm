@@ -56,3 +56,37 @@ mapErrorTests =
           |> Helpers.expectValue "First mapped!"
     ]
   ]
+
+
+catchTests : Test
+catchTests =
+  describe "catch"
+  [ describe "when an error occurs"
+    [ test "it converts the error to a new procedure" <|
+      \() ->
+        Helpers.procedureCommandTestState
+          |> Command.send (\_ ->
+            Procedure.do (Helpers.stringCommand "First")
+              |> Procedure.andThen (\result -> Procedure.break <| result ++ ", Break!")
+              |> Procedure.andThen (\result -> Procedure.send <| result + 28)
+              |> Procedure.map (\result -> String.fromInt result ++ " mapped!")
+              |> Procedure.catch (\error -> Procedure.do <| Helpers.stringCommand <| "Recovered from error: " ++ error)
+              |> Procedure.try CmdTagger TestResultTagger
+            )
+          |> Helpers.expectValue "Recovered from error: First, Break!"
+    ]
+  , describe "when an error does not occur"
+    [ test "it ignores the catch" <|
+      \() ->
+        Helpers.procedureCommandTestState
+          |> Command.send (\_ ->
+            Procedure.do (Helpers.stringCommand "First")
+              |> Procedure.map String.length
+              |> Procedure.andThen (\result -> Procedure.send <| result + 28)
+              |> Procedure.map (\result -> String.fromInt result ++ " mapped!")
+              |> Procedure.catch (\error -> Procedure.do <| Helpers.stringCommand <| "Recovered from error: " ++ error)
+              |> Procedure.try CmdTagger TestResultTagger
+            )
+          |> Helpers.expectValue "33 mapped!"
+    ]
+  ]
