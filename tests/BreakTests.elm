@@ -80,8 +80,8 @@ catchTests =
             Procedure.get (Helpers.stringCommand "First")
               |> Procedure.map String.length
               |> Procedure.andThen (\result -> Procedure.send <| result + 28)
+              |> Procedure.catch (\error -> Procedure.get <| Helpers.intCommand 400)
               |> Procedure.map (\result -> String.fromInt result ++ " mapped!")
-              |> Procedure.catch (\error -> Procedure.get <| Helpers.stringCommand <| "Recovered from error: " ++ error)
               |> Procedure.try ProcedureTagger TestResultTagger
             )
           |> Helpers.expectValue "33 mapped!"
