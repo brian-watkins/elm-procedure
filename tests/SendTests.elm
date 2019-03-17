@@ -14,9 +14,9 @@ sendTests =
     \() -> 
       Helpers.procedureCommandTestState
         |> Command.send (\_ -> 
-            Procedure.do (Helpers.stringCommand "First")
+            Procedure.get (Helpers.stringCommand "First")
               |> Procedure.andThen (\result -> Procedure.send <| result ++ ", Sent!")
-              |> Procedure.andThen (\result -> Procedure.do <| Helpers.stringCommand <| result ++ ", Third")
+              |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| result ++ ", Third")
               |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Helpers.expectValue "First, Sent!, Third"

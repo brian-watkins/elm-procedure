@@ -1,9 +1,10 @@
-module TestHelpers exposing
+port module TestHelpers exposing
   ( Msg(..)
   , procedureCommandTestState
   , expectValue
   , expectError
   , stringCommand
+  , stringPortCommand
   , stringSubscription
   , keySubscription
   , testSubscriptions
@@ -22,7 +23,13 @@ import Procedure
 procedureCommandTestState : TestState Model Msg
 procedureCommandTestState =
   Elmer.given testModel emptyView testUpdate
-    |> Spy.use [ stringCommandSpy, intCommandSpy, stringSubscriptionSpy, keySubscriptionSpy ]
+    |> Spy.use
+      [ stringCommandSpy
+      , intCommandSpy
+      , stringSubscriptionSpy
+      , keySubscriptionSpy
+      , stringPortCommandSpy
+      ]
 
 
 expectValue : String -> TestState Model Msg -> Expect.Expectation
@@ -52,6 +59,15 @@ stringCommandSpy =
 stringCommand : String -> (String -> Msg) -> Cmd Msg
 stringCommand _ _ =
   Cmd.none
+
+
+port stringPortCommand : String -> Cmd msg
+
+
+stringPortCommandSpy : Spy
+stringPortCommandSpy =
+  Spy.observe (\_ -> stringPortCommand)
+    |> andCallFake (\_ -> Command.dummy "string-port")
 
 
 stringSubscription : String -> (String -> Msg) -> Sub Msg

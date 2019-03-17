@@ -53,10 +53,10 @@ update msg model =
         |> Tuple.mapFirst (\updatedModel -> { model | procedureModel = updatedModel })
     DoThings ->
       ( model
-      , Procedure.do fetchTime
-          |> Procedure.andThen (Procedure.do << sendServerRequest)
-          |> Procedure.andThen (Procedure.do << sendAwesomeRequest)
-          |> Procedure.andThen (Procedure.do << sendSweetRequest)
+      , Procedure.get fetchTime
+          |> Procedure.andThen (Procedure.get << sendServerRequest)
+          |> Procedure.andThen (Procedure.get << sendAwesomeRequest)
+          |> Procedure.andThen (Procedure.get << sendSweetRequest)
           |> Procedure.run ProcedureTagger ReceivedResponse
       )
     ReceivedResponse result ->

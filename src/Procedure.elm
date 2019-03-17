@@ -4,6 +4,7 @@ module Procedure exposing
   , Step
   , defaultModel
   , do
+  , get
   , send
   , break
   , catch
@@ -26,10 +27,26 @@ type alias Step e a msg =
   (Msg msg -> msg) -> (Result e a -> msg) -> Cmd msg
 
 
-do : ((a -> msg) -> Cmd msg) -> Step e a msg
-do generator =
+get : ((a -> msg) -> Cmd msg) -> Step e a msg
+get generator =
   \_ tagger ->
     generator <| tagger << Ok
+
+
+do : Cmd msg -> Step Never () msg
+do command =
+  \msgTagger resultTagger ->
+    Task.succeed ()
+      |> Task.perform (\_ ->
+        let
+          nextCommand =
+            Task.succeed ()
+              |> Task.perform (resultTagger << Ok)
+        in
+          Cmd.batch [ command, nextCommand ]
+            |> CmdTagger
+            |> msgTagger
+      )
 
 
 waitFor : ((a -> msg) -> Sub msg) -> Step e a msg
@@ -53,7 +70,7 @@ waitForValue predicate generator =
 
 send : a -> Step e a msg
 send value =
-  do <|
+  get <|
     \tagger ->
       Task.succeed value
         |> Task.perform tagger

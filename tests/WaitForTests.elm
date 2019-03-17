@@ -16,9 +16,9 @@ waitForTests =
     \() ->
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
-            Procedure.do (Helpers.stringCommand "First")
+            Procedure.get (Helpers.stringCommand "First")
               |> Procedure.andThen (\result -> Procedure.waitFor <| Helpers.stringSubscription result)
-              |> Procedure.andThen (\result -> Procedure.do <| Helpers.stringCommand <| "After sub: " ++ result)
+              |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
               |> Procedure.map (\result -> "Mapped: " ++ result)
               |> Procedure.try ProcedureTagger TestResultTagger
           )
@@ -30,9 +30,9 @@ waitForTests =
       \() ->
         Helpers.procedureCommandTestState
           |> Command.send (\_ ->
-              Procedure.do (Helpers.stringCommand "First")
+              Procedure.get (Helpers.stringCommand "First")
                 |> Procedure.andThen (\result -> Procedure.waitFor <| Helpers.stringSubscription result)
-                |> Procedure.andThen (\result -> Procedure.do <| Helpers.stringCommand <| "After sub: " ++ result)
+                |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
                 |> Procedure.map (\result -> "Mapped: " ++ result)
                 |> Procedure.try ProcedureTagger TestResultTagger
             )
@@ -60,7 +60,7 @@ waitForValueTests =
                     |> Procedure.waitForValue (\desc -> desc.key == result)
                 )
                 |> Procedure.map .value
-                |> Procedure.andThen (\result -> Procedure.do <| Helpers.stringCommand <| "After sub: " ++ result)
+                |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
                 |> Procedure.map (\result -> "Mapped: " ++ result)
                 |> Procedure.try ProcedureTagger TestResultTagger
             )
@@ -79,7 +79,7 @@ waitForValueTests =
                     |> Procedure.waitForValue (\desc -> desc.key == result)
                 )
                 |> Procedure.map .value
-                |> Procedure.andThen (\result -> Procedure.do <| Helpers.stringCommand <| "After sub: " ++ result)
+                |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
                 |> Procedure.map (\result -> "Mapped: " ++ result)
                 |> Procedure.try ProcedureTagger TestResultTagger
             )

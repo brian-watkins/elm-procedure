@@ -14,7 +14,7 @@ breakTests =
     \() -> 
       Helpers.procedureCommandTestState
         |> Command.send (\_ -> 
-            Procedure.do (Helpers.stringCommand "First")
+            Procedure.get (Helpers.stringCommand "First")
               |> Procedure.andThen (\result -> Procedure.break <| result ++ ", Break!")
               |> Procedure.andThen (\result -> Procedure.send <| result + 28)
               |> Procedure.map (\result -> String.fromInt result ++ " mapped!")
@@ -31,7 +31,7 @@ mapErrorTests =
       \() ->
         Helpers.procedureCommandTestState
           |> Command.send (\_ ->
-              Procedure.do (Helpers.stringCommand "First")
+              Procedure.get (Helpers.stringCommand "First")
                 |> Procedure.andThen (\result -> Procedure.break <| result ++ ", Break!")
                 |> Procedure.andThen (\result -> Procedure.send <| result + 28)
                 |> Procedure.map (\result -> String.fromInt result ++ " mapped!")
@@ -45,7 +45,7 @@ mapErrorTests =
       \() ->
         Helpers.procedureCommandTestState
           |> Command.send (\_ ->
-              Procedure.do (Helpers.stringCommand "First")
+              Procedure.get (Helpers.stringCommand "First")
                 |> Procedure.map (\result -> result ++ " mapped!")
                 |> Procedure.mapError (\error -> "Mapped error: " ++ error)
                 |> Procedure.try ProcedureTagger TestResultTagger
@@ -63,11 +63,11 @@ catchTests =
       \() ->
         Helpers.procedureCommandTestState
           |> Command.send (\_ ->
-            Procedure.do (Helpers.stringCommand "First")
+            Procedure.get (Helpers.stringCommand "First")
               |> Procedure.andThen (\result -> Procedure.break <| result ++ ", Break!")
               |> Procedure.andThen (\result -> Procedure.send <| result + 28)
               |> Procedure.map (\result -> String.fromInt result ++ " mapped!")
-              |> Procedure.catch (\error -> Procedure.do <| Helpers.stringCommand <| "Recovered from error: " ++ error)
+              |> Procedure.catch (\error -> Procedure.get <| Helpers.stringCommand <| "Recovered from error: " ++ error)
               |> Procedure.try ProcedureTagger TestResultTagger
             )
           |> Helpers.expectValue "Recovered from error: First, Break!"
@@ -77,11 +77,11 @@ catchTests =
       \() ->
         Helpers.procedureCommandTestState
           |> Command.send (\_ ->
-            Procedure.do (Helpers.stringCommand "First")
+            Procedure.get (Helpers.stringCommand "First")
               |> Procedure.map String.length
               |> Procedure.andThen (\result -> Procedure.send <| result + 28)
               |> Procedure.map (\result -> String.fromInt result ++ " mapped!")
-              |> Procedure.catch (\error -> Procedure.do <| Helpers.stringCommand <| "Recovered from error: " ++ error)
+              |> Procedure.catch (\error -> Procedure.get <| Helpers.stringCommand <| "Recovered from error: " ++ error)
               |> Procedure.try ProcedureTagger TestResultTagger
             )
           |> Helpers.expectValue "33 mapped!"
