@@ -5,6 +5,7 @@ module TestHelpers exposing
   , expectError
   , stringCommand
   , stringSubscription
+  , keySubscription
   , testSubscriptions
   , intCommand
   )
@@ -21,7 +22,7 @@ import Procedure
 procedureCommandTestState : TestState Model Msg
 procedureCommandTestState =
   Elmer.given testModel emptyView testUpdate
-    |> Spy.use [ stringCommandSpy, intCommandSpy, stringSubscriptionSpy ]
+    |> Spy.use [ stringCommandSpy, intCommandSpy, stringSubscriptionSpy, keySubscriptionSpy ]
 
 
 expectValue : String -> TestState Model Msg -> Expect.Expectation
@@ -66,6 +67,23 @@ stringSubscriptionSpy =
         \val ->
           tagger <| word ++ " then " ++ val
     )
+
+
+type alias SubDescription =
+  { key: String
+  , value: String
+  }
+
+
+keySubscription : (SubDescription -> Msg) -> Sub Msg
+keySubscription _ =
+  Sub.none
+
+
+keySubscriptionSpy : Spy
+keySubscriptionSpy =
+  Spy.observe (\_ -> keySubscription)
+    |> andCallFake (Subscription.fake "key-subscription")
 
 
 intCommandSpy : Spy

@@ -12,6 +12,7 @@ module Procedure exposing
   , mapError
   , sequence
   , waitFor
+  , waitForValue
   , subscriptions
   , update
   , try
@@ -28,16 +29,24 @@ type alias Step e a msg =
 do : ((a -> msg) -> Cmd msg) -> Step e a msg
 do generator =
   \_ tagger ->
-    generator <|
-      \aData ->
-        Ok aData
-          |> tagger
+    generator <| tagger << Ok
 
 
 waitFor : ((a -> msg) -> Sub msg) -> Step e a msg
-waitFor generator =
+waitFor =
+  waitForValue (\_ -> True)
+
+
+waitForValue : (a -> Bool) -> ((a -> msg) -> Sub msg) -> Step e a msg
+waitForValue predicate generator =
   \msgTagger resultTagger ->
-    generator (resultTagger << Ok)
+    generator (
+      \aData ->
+        if predicate aData then
+          resultTagger <| Ok aData
+        else
+          msgTagger Ignore
+    )
       |> Task.succeed
       |> Task.perform (msgTagger << SubTagger)
 
@@ -164,6 +173,7 @@ defaultModel =
 type Msg msg
   = CmdTagger (Cmd msg)
   | SubTagger (Sub msg)
+  | Ignore
 
 
 update : Msg msg -> Model msg -> (Model msg, Cmd msg)
@@ -173,6 +183,8 @@ update msg model =
       ( { model | subscriptions = Sub.none }, cmd )
     SubTagger sub ->
       ( { model | subscriptions = sub }, Cmd.none )
+    Ignore ->
+      ( model, Cmd.none )
 
 
 subscriptions : Model msg -> Sub msg

@@ -44,3 +44,50 @@ waitForTests =
           )
     ]
   ]
+
+
+waitForValueTests : Test
+waitForValueTests =
+  describe "when a subscription expects a particular value"
+  [ describe "when the value is received"
+    [ test "it processes the remainder of the procedure" <|
+      \() ->
+        Helpers.procedureCommandTestState
+          |> Command.send (\_ ->
+              Procedure.send "sub-key"
+                |> Procedure.andThen (\result ->
+                  Helpers.keySubscription
+                    |> Procedure.waitForValue (\desc -> desc.key == result)
+                )
+                |> Procedure.map .value
+                |> Procedure.andThen (\result -> Procedure.do <| Helpers.stringCommand <| "After sub: " ++ result)
+                |> Procedure.map (\result -> "Mapped: " ++ result)
+                |> Procedure.try ProcedureTagger TestResultTagger
+            )
+          |> Subscription.with (\_ -> Helpers.testSubscriptions)
+          |> Subscription.send "key-subscription" { key = "sub-key", value = "awesome value" }
+          |> Helpers.expectValue "Mapped: After sub: awesome value"
+    ]
+  , describe "when the wrong value is received"
+    [ test "it ignores that value and continues to wait" <|
+      \() ->
+        Helpers.procedureCommandTestState
+          |> Command.send (\_ ->
+              Procedure.send "sub-key"
+                |> Procedure.andThen (\result ->
+                  Helpers.keySubscription
+                    |> Procedure.waitForValue (\desc -> desc.key == result)
+                )
+                |> Procedure.map .value
+                |> Procedure.andThen (\result -> Procedure.do <| Helpers.stringCommand <| "After sub: " ++ result)
+                |> Procedure.map (\result -> "Mapped: " ++ result)
+                |> Procedure.try ProcedureTagger TestResultTagger
+            )
+          |> Subscription.with (\_ -> Helpers.testSubscriptions)
+          |> Subscription.send "key-subscription" { key = "wrong-key", value = "awesome value" }
+          |> Subscription.with (\_ -> Helpers.testSubscriptions)
+          |> Subscription.send "key-subscription" { key = "sub-key", value = "fun value" }
+          |> Helpers.expectValue "Mapped: After sub: fun value"
+    ]
+  ]
+
