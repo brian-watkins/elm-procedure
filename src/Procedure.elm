@@ -21,10 +21,14 @@ module Procedure exposing
   )
 
 import Task
+import Dict exposing (Dict)
 
+
+type alias ProcedureId =
+  Int
 
 type alias Step e a msg =
-  (Msg msg -> msg) -> (Result e a -> msg) -> Cmd msg
+  ProcedureId -> (Msg msg -> msg) -> (Result e a -> msg) -> Cmd msg
 
 
 get : ((a -> msg) -> Cmd msg) -> Step e a msg
@@ -128,7 +132,7 @@ addToList step collector =
 
 
 emptyStep : Step e a msg
-emptyStep _ _ =
+emptyStep _ _ _ =
   Cmd.none
 
 
@@ -151,16 +155,23 @@ mapError mapper step =
 
 next : Step e a msg -> (Result e a -> Step f b msg) -> Step f b msg
 next step resultMapper =
-  \msgTagger tagger ->
-    step msgTagger <|
+  \procId msgTagger tagger ->
+    step procId msgTagger <|
       \aResult ->
-        (resultMapper aResult) msgTagger tagger
+        (resultMapper aResult) procId msgTagger tagger
           |> msgTagger << CmdTagger
 
 
+-- here we would want to do something like 
+-- pass in a function that takes a procedureId and generates the command
+-- since the command is based on the step we are given
+-- and send an allocate command
+
 try : (Msg msg -> msg) -> (Result e a -> msg) -> Step e a msg -> Cmd msg
 try pTagger tagger step =
-  step pTagger tagger
+  -- step pTagger tagger
+  Task.succeed (\procedureId -> step procedureId pTagger tagger)
+    |> Task.perform (pTagger << Allocate)
 
 
 run : (Msg msg -> msg) -> (a -> msg) -> Step Never a msg -> Cmd msg
@@ -176,6 +187,11 @@ run pTagger tagger step =
 
 -----
 
+type alias ExportedModel msg =
+  { procedureId: Int
+  , models: Dict Int (Model msg)
+  }
+
 type alias Model msg =
   { subscriptions : Sub msg
   }
@@ -189,21 +205,68 @@ defaultModel =
 
 type Msg msg
   = CmdTagger (Cmd msg)
-  | SubTagger (Sub msg)
+  | SubTagger ProcedureId (Sub msg)
   | Ignore
+  | Allocate (ProcedureId -> Cmd msg)
+  | Deallocate ProcedureId
+  | SubComplete ProcedureId
 
 
-update : Msg msg -> Model msg -> (Model msg, Cmd msg)
+update : Msg msg -> ExportedModel msg -> (ExportedModel msg, Cmd msg)
 update msg model =
   case msg of
     CmdTagger cmd ->
-      ( { model | subscriptions = Sub.none }, cmd )
-    SubTagger sub ->
-      ( { model | subscriptions = sub }, Cmd.none )
+      ( model, cmd )
+    SubTagger procedureId sub ->
+      let
+        updatedModels = 
+          Dict.insert procedureId { subscriptions = sub } model.models
+      in
+        ( { model | models = updatedModels }, Cmd.none )
+    SubComplete procedureId ->
+      let
+        updatedModels = 
+          Dict.insert procedureId defaultModel model.models
+      in
+        ( { model | models = updatedModels }, Cmd.none )
     Ignore ->
       ( model, Cmd.none )
+    Allocate generator ->
+      let
+        nextId = model.procedureId + 1
+        updatedModels = Dict.insert nextId defaultModel model.models
+      in
+        ( { model | procedureId = nextId, models = updatedModels }, generator nextId )
+    Deallocate procedureId ->
+      ( { model | models = Dict.remove procedureId model.models }, Cmd.none )
 
-
-subscriptions : Model msg -> Sub msg
+subscriptions : ExportedModel msg -> Sub msg
 subscriptions model =
-  model.subscriptions
+  Dict.values model.models
+    |> List.map .subscriptions
+    |> Sub.batch
+  -- model.subscriptions
+
+
+-- What do I want to achieve here?
+-- Suppose you install one procedure model, tagger and then you want to be able to 
+-- run as many distinct procedures as necessary. 
+-- Some of these procedures could be running at the same time. 
+-- So: Handle multiple distinct procedures, each conceivable waiting on different subscriptions
+--     at the same time.
+-- Also: Handle the case where the same procedure is triggered again before it has completed. Again, 
+--       the problem here is only if that procedure has a subscription. 
+--
+-- Note that the model merely stores subscriptions. Would it be possible to have a distinct model
+-- for each triggered procedure? 
+-- It's possible to add a command at the beginning of each procedure, I guess, that goes and
+-- updates our internal model with a new area for storing things pertaining to this procedure? and
+-- then removes it at the end?
+-- But how do I get the procedure id as part of the step?
+-- Procedure.run and Procedure.try might need to take in the model and return it, kind of like the update
+-- function ... that way they could create a new id and pass it to the steps ... ?
+-- OR
+-- Maybe we need to try to pass the tagger (as a function that takes a procedureId) 
+-- when we send the Allocate message, then in the update function
+-- we can execute that function with the procedureId to get the real tagger thereby passing in the id
+-- and then just execute a command that uses that tagger? 
