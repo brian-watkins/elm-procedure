@@ -34,8 +34,8 @@ get generator =
     generator <| tagger << Ok
 
 
-do : Cmd msg -> Step Never () msg
-do command =
+do : (ProcedureId -> Cmd msg) -> Step Never () msg
+do generator =
   \procId msgTagger resultTagger ->
     Task.succeed ()
       |> Task.perform (\_ ->
@@ -44,7 +44,7 @@ do command =
             Task.succeed ()
               |> Task.perform (resultTagger << Ok)
         in
-          Cmd.batch [ command, nextCommand ]
+          Cmd.batch [ generator procId, nextCommand ]
             |> Execute procId
             |> msgTagger
       )
@@ -52,15 +52,15 @@ do command =
 
 waitFor : ((a -> msg) -> Sub msg) -> Step e a msg
 waitFor =
-  waitForValue (\_ -> True)
+  waitForValue (\_ _ -> True)
 
 
-waitForValue : (a -> Bool) -> ((a -> msg) -> Sub msg) -> Step e a msg
+waitForValue : (ProcedureId -> a -> Bool) -> ((a -> msg) -> Sub msg) -> Step e a msg
 waitForValue predicate generator =
   \procId msgTagger resultTagger ->
     generator (
       \aData ->
-        if predicate aData then
+        if predicate procId aData then
           resultTagger <| Ok aData
         else
           msgTagger Continue

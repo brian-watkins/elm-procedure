@@ -52,7 +52,7 @@ waitForValueTests =
               Procedure.send "sub-key"
                 |> Procedure.andThen (\result ->
                   Helpers.keySubscription
-                    |> Procedure.waitForValue (\desc -> desc.key == result)
+                    |> Procedure.waitForValue (\_ desc -> desc.key == result)
                 )
                 |> Procedure.map .value
                 |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
@@ -71,7 +71,7 @@ waitForValueTests =
               Procedure.send "sub-key"
                 |> Procedure.andThen (\result ->
                   Helpers.keySubscription
-                    |> Procedure.waitForValue (\desc -> desc.key == result)
+                    |> Procedure.waitForValue (\_ desc -> desc.key == result)
                 )
                 |> Procedure.map .value
                 |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
@@ -85,6 +85,46 @@ waitForValueTests =
           |> Helpers.expectValue "Mapped: After sub: fun value"
     ]
   ]
+
+
+waitForValueProcedureIdTests : Test
+waitForValueProcedureIdTests =
+  describe "when waiting for a specific value" <|
+  let
+    testState =
+      Helpers.procedureCommandTestState
+        |> Command.send (\_ ->
+            Procedure.send "something"
+              |> Procedure.andThen (\result ->
+                Helpers.keySubscription
+                  |> Procedure.waitForValue (\procedureId desc -> desc.key == String.fromInt procedureId)
+              )
+              |> Procedure.map .value
+              |> Procedure.try ProcedureTagger TestResultTagger
+          )
+        |> Command.send (\_ ->
+            Procedure.send "something else"
+              |> Procedure.andThen (\result ->
+                Helpers.intSubscription
+                  |> Procedure.waitForValue (\procedureId number -> number == procedureId)
+              )
+              |> Procedure.map String.fromInt
+              |> Procedure.try ProcedureTagger TestResultTagger
+          )
+        |> Subscription.with (\_ -> Helpers.testSubscriptions)
+  in
+  [ test "it provides the first procedure with the procedureId" <|
+    \() ->
+      testState
+        |> Subscription.send "key-subscription" { key = "0", value = "awesome value" }
+        |> Helpers.expectValue "awesome value"
+  , test "it provides the second procedure with the procedureId" <|
+    \() ->
+      testState
+        |> Subscription.send "int-subscription" 1
+        |> Helpers.expectValue "1"
+  ]
+
 
 waitForMultipleTests : Test
 waitForMultipleTests =
