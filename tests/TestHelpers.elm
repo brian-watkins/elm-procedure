@@ -9,6 +9,7 @@ port module TestHelpers exposing
   , keySubscription
   , testSubscriptions
   , intCommand
+  , intSubscription
   )
 
 import Expect
@@ -26,6 +27,7 @@ procedureCommandTestState =
     |> Spy.use
       [ stringCommandSpy
       , intCommandSpy
+      , intSubscriptionSpy
       , stringSubscriptionSpy
       , keySubscriptionSpy
       , stringPortCommandSpy
@@ -113,6 +115,17 @@ intCommandSpy =
 intCommand : Int -> (Int -> Msg) -> Cmd Msg
 intCommand _ _ =
   Cmd.none
+
+
+intSubscription : (Int -> Msg) -> Sub Msg
+intSubscription _ =
+  Sub.none
+
+
+intSubscriptionSpy : Spy
+intSubscriptionSpy =
+  Spy.observe (\_ -> intSubscription)
+    |> andCallFake (Subscription.fake "int-subscription")
 
 
 type Msg

@@ -11,9 +11,9 @@ import Procedure
 
 waitForTests : Test
 waitForTests =
-  describe "waitFor"
-  [ test "it waits for the subscription and then continues the procedure" <|
-    \() ->
+  describe "waitFor" <|
+  let
+    procedureState =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
             Procedure.get (Helpers.stringCommand "First")
@@ -24,20 +24,15 @@ waitForTests =
           )
         |> Subscription.with (\_ -> Helpers.testSubscriptions)
         |> Subscription.send "string-subscription" "value from subscription"
+  in
+  [ test "it waits for the subscription and then continues the procedure" <|
+    \() ->
+      procedureState
         |> Helpers.expectValue "Mapped: After sub: First then value from subscription"
   , describe "when the subscription is received"
     [ test "it removes the subscription" <|
       \() ->
-        Helpers.procedureCommandTestState
-          |> Command.send (\_ ->
-              Procedure.get (Helpers.stringCommand "First")
-                |> Procedure.andThen (\result -> Procedure.waitFor <| Helpers.stringSubscription result)
-                |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
-                |> Procedure.map (\result -> "Mapped: " ++ result)
-                |> Procedure.try ProcedureTagger TestResultTagger
-            )
-          |> Subscription.with (\_ -> Helpers.testSubscriptions)
-          |> Subscription.send "string-subscription" "value from subscription"
+        procedureState
           |> Elmer.expectModel (\model ->
             Helpers.testSubscriptions model
               |> Expect.equal Sub.none
@@ -91,3 +86,49 @@ waitForValueTests =
     ]
   ]
 
+waitForMultipleTests : Test
+waitForMultipleTests =
+  describe "when procedures with different subscriptions are running" <|
+  let
+    testState =
+      Helpers.procedureCommandTestState
+        |> Command.send (\_ ->
+            Procedure.get (Helpers.stringCommand "First")
+              |> Procedure.andThen (\result -> Procedure.waitFor <| Helpers.stringSubscription result)
+              |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
+              |> Procedure.map (\result -> "Mapped: " ++ result)
+              |> Procedure.try ProcedureTagger TestResultTagger
+          )
+        |> Command.send (\_ ->
+            Procedure.get (Helpers.stringCommand "Second")
+              |> Procedure.andThen (\result -> Procedure.waitFor <| Helpers.intSubscription)
+              |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ String.fromInt result)
+              |> Procedure.map (\result -> "Mapped: " ++ result)
+              |> Procedure.try ProcedureTagger TestResultTagger
+        )
+  in
+  [ describe "when the first subscription is received" <|
+    let
+      firstSubState =
+        testState
+          |> Subscription.with (\_ -> Helpers.testSubscriptions)
+          |> Subscription.send "string-subscription" "value from subscription"
+    in
+    [ test "it completes the first procedure" <|
+      \() ->
+        firstSubState
+          |> Helpers.expectValue "Mapped: After sub: First then value from subscription"
+    , describe "when the second subscription is received" <|
+      let
+        secondSubState =
+          firstSubState
+            |> Subscription.with (\_ -> Helpers.testSubscriptions)
+            |> Subscription.send "int-subscription" 38
+      in
+      [ test "it completes the second procedure" <|
+        \() ->
+          secondSubState
+            |> Helpers.expectValue "Mapped: After sub: 38"
+      ]
+    ]
+  ]

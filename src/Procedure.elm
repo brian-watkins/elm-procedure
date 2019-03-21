@@ -21,21 +21,22 @@ module Procedure exposing
   )
 
 import Task
+import Dict exposing (Dict)
 
 
 type alias Step e a msg =
-  (Msg msg -> msg) -> (Result e a -> msg) -> Cmd msg
+  ProcedureId -> (Msg msg -> msg) -> (Result e a -> msg) -> Cmd msg
 
 
 get : ((a -> msg) -> Cmd msg) -> Step e a msg
 get generator =
-  \_ tagger ->
+  \_ _ tagger ->
     generator <| tagger << Ok
 
 
 do : Cmd msg -> Step Never () msg
 do command =
-  \msgTagger resultTagger ->
+  \procId msgTagger resultTagger ->
     Task.succeed ()
       |> Task.perform (\_ ->
         let
@@ -44,7 +45,7 @@ do command =
               |> Task.perform (resultTagger << Ok)
         in
           Cmd.batch [ command, nextCommand ]
-            |> CmdTagger
+            |> Execute procId
             |> msgTagger
       )
 
@@ -56,16 +57,16 @@ waitFor =
 
 waitForValue : (a -> Bool) -> ((a -> msg) -> Sub msg) -> Step e a msg
 waitForValue predicate generator =
-  \msgTagger resultTagger ->
+  \procId msgTagger resultTagger ->
     generator (
       \aData ->
         if predicate aData then
           resultTagger <| Ok aData
         else
-          msgTagger Ignore
+          msgTagger Continue
     )
       |> Task.succeed
-      |> Task.perform (msgTagger << SubTagger)
+      |> Task.perform (msgTagger << Subscribe procId)
 
 
 send : a -> Step e a msg
@@ -78,7 +79,7 @@ send value =
 
 break : e -> Step e a msg
 break value =
-  \_ tagger ->
+  \_ _ tagger ->
     Task.succeed value
       |> Task.perform (tagger << Err)
 
@@ -128,7 +129,7 @@ addToList step collector =
 
 
 emptyStep : Step e a msg
-emptyStep _ _ =
+emptyStep _ _ _ =
   Cmd.none
 
 
@@ -151,21 +152,22 @@ mapError mapper step =
 
 next : Step e a msg -> (Result e a -> Step f b msg) -> Step f b msg
 next step resultMapper =
-  \msgTagger tagger ->
-    step msgTagger <|
+  \procId msgTagger tagger ->
+    step procId msgTagger <|
       \aResult ->
-        (resultMapper aResult) msgTagger tagger
-          |> msgTagger << CmdTagger
+        (resultMapper aResult) procId msgTagger tagger
+          |> msgTagger << Execute procId
 
 
 try : (Msg msg -> msg) -> (Result e a -> msg) -> Step e a msg -> Cmd msg
-try pTagger tagger step =
-  step pTagger tagger
+try msgTagger tagger step =
+  Task.succeed (\procId -> step procId msgTagger tagger)
+    |> Task.perform (msgTagger << Initiate)
 
 
 run : (Msg msg -> msg) -> (a -> msg) -> Step Never a msg -> Cmd msg
-run pTagger tagger step =
-  try pTagger (\result ->
+run msgTagger tagger step =
+  try msgTagger (\result ->
     case result of
       Ok data ->
         tagger data
@@ -176,34 +178,63 @@ run pTagger tagger step =
 
 -----
 
+
+type alias ProcedureId =
+  Int
+
+
 type alias Model msg =
-  { subscriptions : Sub msg
+  { nextId: ProcedureId
+  , procedures: Dict ProcedureId (ProcedureModel msg)
   }
 
 
 defaultModel : Model msg
 defaultModel =
-  { subscriptions = Sub.none
+  { nextId = 0
+  , procedures = Dict.empty
+  }
+
+
+type alias ProcedureModel msg =
+  { subscriptions: Sub msg
+  }
+
+
+procedureModel : Sub msg -> ProcedureModel msg
+procedureModel sub =
+  { subscriptions = sub
   }
 
 
 type Msg msg
-  = CmdTagger (Cmd msg)
-  | SubTagger (Sub msg)
-  | Ignore
+  = Initiate (ProcedureId -> Cmd msg)
+  | Execute ProcedureId (Cmd msg)
+  | Subscribe ProcedureId (Sub msg)
+  | Continue
 
 
 update : Msg msg -> Model msg -> (Model msg, Cmd msg)
 update msg model =
   case msg of
-    CmdTagger cmd ->
-      ( { model | subscriptions = Sub.none }, cmd )
-    SubTagger sub ->
-      ( { model | subscriptions = sub }, Cmd.none )
-    Ignore ->
+    Initiate generator ->
+      ( { model | nextId = model.nextId + 1 }
+      , generator model.nextId
+      )
+    Execute procedureId cmd ->
+      ( { model | procedures = Dict.remove procedureId model.procedures }
+      , cmd
+      )
+    Subscribe procedureId sub ->
+      ( { model | procedures = Dict.insert procedureId (procedureModel sub) model.procedures }
+      , Cmd.none
+      )
+    Continue ->
       ( model, Cmd.none )
 
 
 subscriptions : Model msg -> Sub msg
 subscriptions model =
-  model.subscriptions
+  Dict.values model.procedures
+    |> List.map .subscriptions
+    |> Sub.batch
