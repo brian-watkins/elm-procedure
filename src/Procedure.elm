@@ -10,6 +10,7 @@ module Procedure exposing
   , catch
   , andThen
   , map
+  , map2
   , mapError
   , sequence
   , waitFor
@@ -136,6 +137,15 @@ emptyStep _ _ _ =
 map : (a -> b) -> Step e a msg -> Step e b msg
 map mapper =
   andThen (send << mapper)
+
+
+map2 : (a -> b -> c) -> Step e a msg -> Step e b msg -> Step e c msg
+map2 mapper stepA stepB =
+  stepA
+    |> andThen (\aData ->
+      stepB
+        |> map (mapper aData)
+    )
 
 
 mapError : (e -> f) -> Step e a msg -> Step f a msg
