@@ -172,3 +172,29 @@ waitForMultipleTests =
       ]
     ]
   ]
+
+
+waitForAndMapTests : Test
+waitForAndMapTests =
+  describe "when two procedures are waiting"
+  [ test "it handles both procedures sequentially" <|
+    \() ->
+      Helpers.procedureCommandTestState
+        |> Command.send (\_ ->
+          Procedure.map2 (\a b -> a ++ " AND " ++ b)
+            ( Procedure.get (Helpers.stringCommand "First String Command")
+                |> Procedure.andThen (\result -> Procedure.waitFor <| Helpers.stringSubscription result)
+                |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
+            )
+            ( Procedure.send 787
+                |> Procedure.andThen (\_ -> Procedure.waitFor <| Helpers.intSubscription)
+                |> Procedure.map (\result -> "Mapped Int: " ++ String.fromInt result)
+            )
+            |> Procedure.try ProcedureTagger TestResultTagger
+        )
+        |> Subscription.with (\_ -> Helpers.testSubscriptions)
+        |> Subscription.send "string-subscription" "value from subscription"
+        |> Subscription.with (\_ -> Helpers.testSubscriptions)
+        |> Subscription.send "int-subscription" 38
+        |> Helpers.expectValue "After sub: First String Command then value from subscription AND Mapped Int: 38"
+  ]
