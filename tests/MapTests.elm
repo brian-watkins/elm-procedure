@@ -37,3 +37,20 @@ map2Tests =
           )
         |> Helpers.expectValue "First and Second"
   ]
+
+
+map3Tests : Test
+map3Tests =
+  describe "when map3 is used"
+  [ test "it runs all procedures and transforms the result" <|
+    \() ->
+      Helpers.procedureCommandTestState
+        |> Command.send (\_ ->
+          Procedure.map3 (\a b c -> a ++ " AND " ++ b ++ " AND " ++ c)
+              (Procedure.send "First")
+              (Procedure.send "Second")
+              (Procedure.send "Third")
+            |> Procedure.run ProcedureTagger TestStringTagger
+        )
+        |> Helpers.expectValue "First AND Second AND Third"
+  ]

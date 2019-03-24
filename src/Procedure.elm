@@ -9,8 +9,7 @@ module Procedure exposing
   , break
   , catch
   , andThen
-  , map
-  , map2
+  , map, map2, map3
   , mapError
   , sequence
   , waitFor
@@ -145,6 +144,14 @@ map2 mapper stepA stepB =
     |> andThen (\aData ->
       stepB
         |> map (mapper aData)
+    )
+
+
+map3 : (a -> b -> c -> d) -> Step e a msg -> Step e b msg -> Step e c msg -> Step e d msg
+map3 mapper stepA stepB stepC =
+  stepA
+    |> andThen (\aData ->
+      map2 (mapper aData) stepB stepC
     )
 
 
