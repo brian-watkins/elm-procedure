@@ -1,8 +1,11 @@
 module Procedure exposing
   ( Msg
   , Model
+  , init
+  , update
+  , subscriptions
+  , ProcedureId
   , Step
-  , defaultModel
   , do
   , fetch
   , send
@@ -14,14 +17,16 @@ module Procedure exposing
   , collect
   , waitFor
   , waitForValue
-  , subscriptions
-  , update
   , try
   , run
   )
 
 import Task
 import Dict exposing (Dict)
+
+
+type alias ProcedureId =
+  Int
 
 
 type alias Step e a msg =
@@ -196,8 +201,11 @@ run msgTagger tagger step =
 -----
 
 
-type alias ProcedureId =
-  Int
+type Msg msg
+  = Initiate (ProcedureId -> Cmd msg)
+  | Execute ProcedureId (Cmd msg)
+  | Subscribe ProcedureId (Sub msg)
+  | Continue
 
 
 type alias Model msg =
@@ -206,8 +214,8 @@ type alias Model msg =
   }
 
 
-defaultModel : Model msg
-defaultModel =
+init : Model msg
+init =
   { nextId = 0
   , procedures = Dict.empty
   }
@@ -222,13 +230,6 @@ procedureModel : Sub msg -> ProcedureModel msg
 procedureModel sub =
   { subscriptions = sub
   }
-
-
-type Msg msg
-  = Initiate (ProcedureId -> Cmd msg)
-  | Execute ProcedureId (Cmd msg)
-  | Subscribe ProcedureId (Sub msg)
-  | Continue
 
 
 update : Msg msg -> Model msg -> (Model msg, Cmd msg)

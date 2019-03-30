@@ -142,7 +142,7 @@ type alias Model =
 
 
 testModel =
-  { procedureModel = Procedure.defaultModel
+  { procedureModel = Procedure.init
   , message = ""
   , error = ""
   }

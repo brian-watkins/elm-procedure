@@ -30,7 +30,7 @@ type alias Model =
 
 defaultModel : Model
 defaultModel =
-  { procedureModel = Procedure.defaultModel
+  { procedureModel = Procedure.init
   , serverMessage = "Nothing"
   }
 
