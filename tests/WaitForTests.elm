@@ -49,7 +49,7 @@ waitForValueTests =
       \() ->
         Helpers.procedureCommandTestState
           |> Command.send (\_ ->
-              Procedure.send "sub-key"
+              Procedure.provide "sub-key"
                 |> Procedure.andThen (\result ->
                   Helpers.keySubscription
                     |> Procedure.waitForValue (\_ desc -> desc.key == result)
@@ -68,7 +68,7 @@ waitForValueTests =
       \() ->
         Helpers.procedureCommandTestState
           |> Command.send (\_ ->
-              Procedure.send "sub-key"
+              Procedure.provide "sub-key"
                 |> Procedure.andThen (\result ->
                   Helpers.keySubscription
                     |> Procedure.waitForValue (\_ desc -> desc.key == result)
@@ -94,7 +94,7 @@ waitForValueProcedureIdTests =
     testState =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
-            Procedure.send "something"
+            Procedure.provide "something"
               |> Procedure.andThen (\result ->
                 Helpers.keySubscription
                   |> Procedure.waitForValue (\procedureId desc -> desc.key == String.fromInt procedureId)
@@ -103,7 +103,7 @@ waitForValueProcedureIdTests =
               |> Procedure.try ProcedureTagger TestResultTagger
           )
         |> Command.send (\_ ->
-            Procedure.send "something else"
+            Procedure.provide "something else"
               |> Procedure.andThen (\result ->
                 Helpers.intSubscription
                   |> Procedure.waitForValue (\procedureId number -> number == procedureId)
@@ -186,7 +186,7 @@ waitForAndMapTests =
                 |> Procedure.andThen (\result -> Procedure.waitFor <| Helpers.stringSubscription result)
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
             )
-            ( Procedure.send 787
+            ( Procedure.provide 787
                 |> Procedure.andThen (\_ -> Procedure.waitFor <| Helpers.intSubscription)
                 |> Procedure.map (\result -> "Mapped Int: " ++ String.fromInt result)
             )

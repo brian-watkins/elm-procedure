@@ -8,7 +8,7 @@ module Procedure exposing
   , Step
   , do
   , fetch
-  , send
+  , provide
   , break
   , catch
   , andThen
@@ -74,8 +74,8 @@ waitForValue predicate generator =
       |> Task.perform (msgTagger << Subscribe procId)
 
 
-send : a -> Step e a msg
-send value =
+provide : a -> Step e a msg
+provide value =
   fetch <|
     \tagger ->
       Task.succeed value
@@ -95,7 +95,7 @@ catch stepGenerator step =
     \aResult ->
       case aResult of
         Ok aData ->
-          send aData
+          provide aData
         Err eData ->
           stepGenerator eData
 
@@ -128,7 +128,7 @@ addToList step collector =
         Ok aData ->
           aData :: []
             |> List.append collector
-            |> send
+            |> provide
         Err eData ->
           break eData
 
@@ -140,7 +140,7 @@ emptyStep _ _ _ =
 
 map : (a -> b) -> Step e a msg -> Step e b msg
 map mapper =
-  andThen (send << mapper)
+  andThen (provide << mapper)
 
 
 map2 : (a -> b -> c) -> Step e a msg -> Step e b msg -> Step e c msg
@@ -166,7 +166,7 @@ mapError mapper step =
     \aResult ->
       case aResult of
         Ok aData ->
-          send aData
+          provide aData
         Err eData ->
           mapper eData
             |> break

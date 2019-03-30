@@ -47,9 +47,9 @@ map3Tests =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
           Procedure.map3 (\a b c -> a ++ " AND " ++ b ++ " AND " ++ c)
-              (Procedure.send "First")
-              (Procedure.send "Second")
-              (Procedure.send "Third")
+              (Procedure.provide "First")
+              (Procedure.provide "Second")
+              (Procedure.provide "Third")
             |> Procedure.run ProcedureTagger TestStringTagger
         )
         |> Helpers.expectValue "First AND Second AND Third"
