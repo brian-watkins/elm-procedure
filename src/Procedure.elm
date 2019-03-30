@@ -11,7 +11,7 @@ module Procedure exposing
   , andThen
   , map, map2, map3
   , mapError
-  , sequence
+  , collect
   , waitFor
   , waitForValue
   , subscriptions
@@ -106,8 +106,8 @@ andThen stepGenerator step =
           break eData
 
 
-sequence : List (Step e a msg) -> Step e (List a) msg
-sequence steps =
+collect : List (Step e a msg) -> Step e (List a) msg
+collect steps =
   case steps of
     [] ->
       emptyStep

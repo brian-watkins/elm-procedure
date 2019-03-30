@@ -1,4 +1,4 @@
-module SequenceTests exposing (..)
+module CollectTests exposing (..)
 
 import Expect
 import Test exposing (..)
@@ -7,14 +7,14 @@ import TestHelpers as Helpers exposing (Msg(..))
 import Procedure
 
 
-sequenceTests : Test
-sequenceTests =
-  describe "when a sequence of commands is executed"
+collectTests : Test
+collectTests =
+  describe "when a list of steps is executed"
   [ test "it collects the results in a list" <|
     \() ->
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
-            Procedure.sequence
+            Procedure.collect
               [ Procedure.fetch <| Helpers.stringCommand "Awesome"
               , Procedure.fetch <| Helpers.stringCommand "fun"
               , Procedure.fetch <| Helpers.stringCommand "stuff!!!"
@@ -32,7 +32,7 @@ breakTests =
     \() ->
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
-            Procedure.sequence
+            Procedure.collect
               [ Procedure.fetch <| Helpers.stringCommand "Awesome"
               , Procedure.break "Break!?"
               , Procedure.fetch <| Helpers.stringCommand "stuff!!!"
