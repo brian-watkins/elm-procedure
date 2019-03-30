@@ -4,7 +4,7 @@ module Procedure exposing
   , Step
   , defaultModel
   , do
-  , get
+  , fetch
   , send
   , break
   , catch
@@ -28,8 +28,8 @@ type alias Step e a msg =
   ProcedureId -> (Msg msg -> msg) -> (Result e a -> msg) -> Cmd msg
 
 
-get : ((a -> msg) -> Cmd msg) -> Step e a msg
-get generator =
+fetch : ((a -> msg) -> Cmd msg) -> Step e a msg
+fetch generator =
   \_ _ tagger ->
     generator <| tagger << Ok
 
@@ -71,7 +71,7 @@ waitForValue predicate generator =
 
 send : a -> Step e a msg
 send value =
-  get <|
+  fetch <|
     \tagger ->
       Task.succeed value
         |> Task.perform tagger

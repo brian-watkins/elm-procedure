@@ -21,7 +21,7 @@ doCommandTests =
               Procedure.do (\_ -> Helpers.stringPortCommand "Fun!")
                 |> Procedure.andThen (\_ -> Procedure.waitFor <| Helpers.stringSubscription "Triggered by port")
                 |> Procedure.map (\result -> "Mapped: " ++ result)
-                |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| result ++ "!!!")
+                |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| result ++ "!!!")
                 |> Procedure.run ProcedureTagger TestStringTagger
             )
   in

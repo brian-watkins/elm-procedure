@@ -15,9 +15,9 @@ sequenceTests =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
             Procedure.sequence
-              [ Procedure.get <| Helpers.stringCommand "Awesome"
-              , Procedure.get <| Helpers.stringCommand "fun"
-              , Procedure.get <| Helpers.stringCommand "stuff!!!"
+              [ Procedure.fetch <| Helpers.stringCommand "Awesome"
+              , Procedure.fetch <| Helpers.stringCommand "fun"
+              , Procedure.fetch <| Helpers.stringCommand "stuff!!!"
               ]
               |> Procedure.map (\results -> String.join ", " results)
               |> Procedure.run ProcedureTagger TestStringTagger
@@ -33,10 +33,10 @@ breakTests =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
             Procedure.sequence
-              [ Procedure.get <| Helpers.stringCommand "Awesome"
+              [ Procedure.fetch <| Helpers.stringCommand "Awesome"
               , Procedure.break "Break!?"
-              , Procedure.get <| Helpers.stringCommand "stuff!!!"
-              , Procedure.get <| Helpers.stringCommand "more stuff!!!"
+              , Procedure.fetch <| Helpers.stringCommand "stuff!!!"
+              , Procedure.fetch <| Helpers.stringCommand "more stuff!!!"
               ]
               |> Procedure.map (\results -> String.join ", " results)
               |> Procedure.try ProcedureTagger TestResultTagger

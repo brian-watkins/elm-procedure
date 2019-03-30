@@ -16,9 +16,9 @@ waitForTests =
     procedureState =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
-            Procedure.get (Helpers.stringCommand "First")
+            Procedure.fetch (Helpers.stringCommand "First")
               |> Procedure.andThen (\result -> Procedure.waitFor <| Helpers.stringSubscription result)
-              |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
+              |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
               |> Procedure.map (\result -> "Mapped: " ++ result)
               |> Procedure.try ProcedureTagger TestResultTagger
           )
@@ -55,7 +55,7 @@ waitForValueTests =
                     |> Procedure.waitForValue (\_ desc -> desc.key == result)
                 )
                 |> Procedure.map .value
-                |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
+                |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
                 |> Procedure.map (\result -> "Mapped: " ++ result)
                 |> Procedure.try ProcedureTagger TestResultTagger
             )
@@ -74,7 +74,7 @@ waitForValueTests =
                     |> Procedure.waitForValue (\_ desc -> desc.key == result)
                 )
                 |> Procedure.map .value
-                |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
+                |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
                 |> Procedure.map (\result -> "Mapped: " ++ result)
                 |> Procedure.try ProcedureTagger TestResultTagger
             )
@@ -133,16 +133,16 @@ waitForMultipleTests =
     testState =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
-            Procedure.get (Helpers.stringCommand "First")
+            Procedure.fetch (Helpers.stringCommand "First")
               |> Procedure.andThen (\result -> Procedure.waitFor <| Helpers.stringSubscription result)
-              |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
+              |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
               |> Procedure.map (\result -> "Mapped: " ++ result)
               |> Procedure.try ProcedureTagger TestResultTagger
           )
         |> Command.send (\_ ->
-            Procedure.get (Helpers.stringCommand "Second")
+            Procedure.fetch (Helpers.stringCommand "Second")
               |> Procedure.andThen (\result -> Procedure.waitFor <| Helpers.intSubscription)
-              |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ String.fromInt result)
+              |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ String.fromInt result)
               |> Procedure.map (\result -> "Mapped: " ++ result)
               |> Procedure.try ProcedureTagger TestResultTagger
         )
@@ -182,9 +182,9 @@ waitForAndMapTests =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
           Procedure.map2 (\a b -> a ++ " AND " ++ b)
-            ( Procedure.get (Helpers.stringCommand "First String Command")
+            ( Procedure.fetch (Helpers.stringCommand "First String Command")
                 |> Procedure.andThen (\result -> Procedure.waitFor <| Helpers.stringSubscription result)
-                |> Procedure.andThen (\result -> Procedure.get <| Helpers.stringCommand <| "After sub: " ++ result)
+                |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
             )
             ( Procedure.send 787
                 |> Procedure.andThen (\_ -> Procedure.waitFor <| Helpers.intSubscription)
