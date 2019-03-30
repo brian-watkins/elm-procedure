@@ -208,7 +208,11 @@ type Msg msg
   | Continue
 
 
-type alias Model msg =
+type Model msg =
+  Model (Registry msg)
+
+
+type alias Registry msg =
   { nextId: ProcedureId
   , procedures: Dict ProcedureId (ProcedureModel msg)
   }
@@ -216,9 +220,10 @@ type alias Model msg =
 
 init : Model msg
 init =
-  { nextId = 0
-  , procedures = Dict.empty
-  }
+  Model <| 
+    { nextId = 0
+    , procedures = Dict.empty
+    }
 
 
 type alias ProcedureModel msg =
@@ -233,26 +238,32 @@ procedureModel sub =
 
 
 update : Msg msg -> Model msg -> (Model msg, Cmd msg)
-update msg model =
+update msg (Model registry) =
+  updateProcedures msg registry
+    |> Tuple.mapFirst Model
+
+
+updateProcedures : Msg msg -> Registry msg -> (Registry msg, Cmd msg)
+updateProcedures msg registry =
   case msg of
     Initiate generator ->
-      ( { model | nextId = model.nextId + 1 }
-      , generator model.nextId
+      ( { registry | nextId = registry.nextId + 1 }
+      , generator registry.nextId
       )
     Execute procedureId cmd ->
-      ( { model | procedures = Dict.remove procedureId model.procedures }
+      ( { registry | procedures = Dict.remove procedureId registry.procedures }
       , cmd
       )
     Subscribe procedureId sub ->
-      ( { model | procedures = Dict.insert procedureId (procedureModel sub) model.procedures }
+      ( { registry | procedures = Dict.insert procedureId (procedureModel sub) registry.procedures }
       , Cmd.none
       )
     Continue ->
-      ( model, Cmd.none )
+      ( registry, Cmd.none )
 
 
 subscriptions : Model msg -> Sub msg
-subscriptions model =
-  Dict.values model.procedures
+subscriptions (Model registry) =
+  Dict.values registry.procedures
     |> List.map .subscriptions
     |> Sub.batch
