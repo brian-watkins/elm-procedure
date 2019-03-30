@@ -19,7 +19,7 @@ doCommandTests =
         Helpers.procedureCommandTestState
           |> Command.send (\_ -> 
               Procedure.do (\_ -> Helpers.stringPortCommand "Fun!")
-                |> Procedure.andThen (\_ -> Procedure.waitFor <| Helpers.stringSubscription "Triggered by port")
+                |> Procedure.andThen (\_ -> Procedure.wait <| Helpers.stringSubscription "Triggered by port")
                 |> Procedure.map (\result -> "Mapped: " ++ result)
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| result ++ "!!!")
                 |> Procedure.run ProcedureTagger TestStringTagger
@@ -46,12 +46,12 @@ procedureIdTests =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
             Procedure.do (\procedureId -> Helpers.stringPortCommand <| String.fromInt procedureId)
-              |> Procedure.andThen (\_ -> Procedure.waitFor <| Helpers.stringSubscription "Triggered by port")
+              |> Procedure.andThen (\_ -> Procedure.wait <| Helpers.stringSubscription "Triggered by port")
               |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Command.send (\_ ->
             Procedure.do (\procedureId -> Helpers.stringPortCommand <| String.fromInt procedureId)
-              |> Procedure.andThen (\_ -> Procedure.waitFor <| Helpers.stringSubscription "Triggered by port")
+              |> Procedure.andThen (\_ -> Procedure.wait <| Helpers.stringSubscription "Triggered by port")
               |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Subscription.with (\_ -> Helpers.testSubscriptions)

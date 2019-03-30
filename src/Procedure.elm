@@ -15,8 +15,8 @@ module Procedure exposing
   , map, map2, map3
   , mapError
   , collect
+  , wait
   , waitFor
-  , waitForValue
   , try
   , run
   )
@@ -55,13 +55,13 @@ do generator =
       )
 
 
-waitFor : ((a -> msg) -> Sub msg) -> Step e a msg
-waitFor =
-  waitForValue (\_ _ -> True)
+wait : ((a -> msg) -> Sub msg) -> Step e a msg
+wait =
+  waitFor (\_ _ -> True)
 
 
-waitForValue : (ProcedureId -> a -> Bool) -> ((a -> msg) -> Sub msg) -> Step e a msg
-waitForValue predicate generator =
+waitFor : (ProcedureId -> a -> Bool) -> ((a -> msg) -> Sub msg) -> Step e a msg
+waitFor predicate generator =
   \procId msgTagger resultTagger ->
     generator (
       \aData ->
