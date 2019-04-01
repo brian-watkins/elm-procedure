@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "compile": "ELM_HOME=$(pwd)/node_modules/elmer-test/home elm make",
+    "compile:docs": "ELM_HOME=$(pwd)/node_modules/elmer-test/home elm make --docs=docs.json",
     "test": "ELM_HOME=$(pwd)/node_modules/elmer-test/home elm-test"
   },
   "keywords": [],
