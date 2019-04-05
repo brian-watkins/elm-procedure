@@ -47,6 +47,7 @@ module Procedure exposing
 
 import Task
 import Dict exposing (Dict)
+import Process
 
 
 {-| Represents the unique identifier assigned to each procedure.
@@ -477,14 +478,14 @@ You should add this to your application's update function like so:
             |> Tuple.mapFirst (\updated -> { appModel | procModel = updated })
 
 -}
-update : Msg msg -> Model msg -> (Model msg, Cmd msg)
-update msg (Model registry) =
-  updateProcedures msg registry
+update : (Msg msg -> msg) -> Msg msg -> Model msg -> (Model msg, Cmd msg)
+update msgTagger msg (Model registry) =
+  updateProcedures msgTagger msg registry
     |> Tuple.mapFirst Model
 
 
-updateProcedures : Msg msg -> Registry msg -> (Registry msg, Cmd msg)
-updateProcedures msg registry =
+updateProcedures : (Msg msg -> msg) -> Msg msg -> Registry msg -> (Registry msg, Cmd msg)
+updateProcedures msgTagger msg registry =
   case msg of
     Initiate generator ->
       ( { registry | nextId = registry.nextId + 1 }
@@ -496,10 +497,16 @@ updateProcedures msg registry =
       )
     Subscribe procedureId sub ->
       ( { registry | procedures = Dict.insert procedureId (procedureModel sub) registry.procedures }
-      , Cmd.none
+      , Cmd.map msgTagger <| triggerUpdate 0
       )
     Continue ->
       ( registry, Cmd.none )
+
+
+triggerUpdate : Float -> Cmd (Msg msg)
+triggerUpdate timeout =
+  Process.sleep timeout
+    |> Task.perform (always Continue)
 
 
 {-| Get any subscriptions necessary for running procedures. 

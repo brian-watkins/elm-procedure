@@ -1,0 +1,14 @@
+{
+  "name": "procedure-integration-test-app",
+  "version": "1.0.0",
+  "description": "Integration Test App using Elm-Procedure",
+  "scripts": {
+    "start": "elm-live src/Main.elm -e ../node_modules/.bin/elm --open -- --output=elm.js",
+    "start:test": "elm-live src/Main.elm -e ../node_modules/.bin/elm -p 9732 --no-recover -- --output=elm.js"
+  },
+  "author": "Brian Watkins",
+  "license": "MIT",
+  "devDependencies": {
+    "elm-live": "^3.4.0"
+  }
+}

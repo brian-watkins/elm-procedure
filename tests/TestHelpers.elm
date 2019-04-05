@@ -18,6 +18,8 @@ import Elmer.Spy as Spy exposing (Spy, andCallFake)
 import Elmer.Command as Command
 import Elmer.Subscription as Subscription
 import Html exposing (Html)
+import Task
+import Process
 import Procedure
 
 
@@ -31,8 +33,16 @@ procedureCommandTestState =
       , stringSubscriptionSpy
       , keySubscriptionSpy
       , stringPortCommandSpy
+      , processSpy
       ]
 
+
+processSpy : Spy
+processSpy =
+  Spy.observe (\_ -> Process.sleep)
+    |> andCallFake (\timeout ->
+      Task.succeed ()
+    )
 
 expectValue : String -> TestState Model Msg -> Expect.Expectation
 expectValue expected testState =
@@ -152,7 +162,7 @@ testUpdate : Msg -> Model -> (Model, Cmd Msg)
 testUpdate msg model =
   case msg of
     ProcedureTagger pMsg ->
-      Procedure.update pMsg model.procedureModel
+      Procedure.update ProcedureTagger pMsg model.procedureModel
         |> Tuple.mapFirst (\updatedModel -> { model | procedureModel = updatedModel })
     TestStringTagger value ->
       ({ model | message = value }, Cmd.none)
