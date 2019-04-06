@@ -9,9 +9,9 @@ import TestHelpers as Helpers exposing (Msg(..))
 import Procedure
 
 
-waitForTests : Test
-waitForTests =
-  describe "waitFor" <|
+waitTests : Test
+waitTests =
+  describe "wait" <|
   let
     procedureState =
       Helpers.procedureCommandTestState
@@ -41,8 +41,8 @@ waitForTests =
   ]
 
 
-waitForValueTests : Test
-waitForValueTests =
+waitForTests : Test
+waitForTests =
   describe "when a subscription expects a particular value"
   [ describe "when the value is received"
     [ test "it processes the remainder of the procedure" <|
@@ -87,8 +87,8 @@ waitForValueTests =
   ]
 
 
-waitForValueProcedureIdTests : Test
-waitForValueProcedureIdTests =
+waitForProcedureIdTests : Test
+waitForProcedureIdTests =
   describe "when waiting for a specific value" <|
   let
     testState =
@@ -126,8 +126,8 @@ waitForValueProcedureIdTests =
   ]
 
 
-waitForMultipleTests : Test
-waitForMultipleTests =
+waitMultipleTests : Test
+waitMultipleTests =
   describe "when procedures with different subscriptions are running" <|
   let
     testState =
@@ -174,8 +174,8 @@ waitForMultipleTests =
   ]
 
 
-waitForAndMapTests : Test
-waitForAndMapTests =
+waitAndMapTests : Test
+waitAndMapTests =
   describe "when two procedures are waiting"
   [ test "it handles both procedures sequentially" <|
     \() ->
