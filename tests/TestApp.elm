@@ -49,7 +49,7 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     ProcedureTagger pMsg ->
-      Procedure.update ProcedureTagger pMsg model.procedureModel
+      Procedure.update pMsg model.procedureModel
         |> Tuple.mapFirst (\updatedModel -> { model | procedureModel = updatedModel })
     DoThings ->
       ( model

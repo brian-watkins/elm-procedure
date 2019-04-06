@@ -13,10 +13,14 @@
     node: document.getElementById('elm')
   });
 
-  app.ports.funPort.subscribe(function(word) {
+  app.ports.asyncPort.subscribe(function(word) {
     setTimeout(() => {
-      app.ports.funSub.send(`Thanks for the message: ${word}!`)
-    }, 0)
+      app.ports.portSubscription.send(`Thanks for the message: ${word}!`)
+    }, 10)
+  })
+
+  app.ports.syncPort.subscribe(function(word) {
+    app.ports.portSubscription.send(`Thanks for the message: ${word}!`)
   })
   </script>
 </body>

@@ -6,26 +6,36 @@ import Html exposing (Html, Attribute)
 import Html.Events as Events
 import Html.Attributes as Attr
 import Json.Decode as Decode exposing (Decoder)
-import Task
 import Procedure
-import Process
+import Procedure.Channel as Channel
 
-port funPort : String -> Cmd msg
-port funSub : (String -> msg) -> Sub msg
+port syncPort : String -> Cmd msg
+port asyncPort : String -> Cmd msg
+port portSubscription : (String -> msg) -> Sub msg
 
-portProcedure : String -> Cmd Msg
-portProcedure word =
-  Procedure.do (\_ -> funPort word)
-    |> Procedure.andThen (\_ -> Procedure.wait funSub)
+asyncPortProcedure : String -> Cmd Msg
+asyncPortProcedure word =
+  Channel.send (\_ -> asyncPort word)
+    |> Channel.receive portSubscription
+    |> Procedure.await
+    |> Procedure.run ProcMsg ReceivedPortMessage
+
+syncPortProcedure : String -> Cmd Msg
+syncPortProcedure word =
+  Channel.send (\_ -> syncPort word)
+    |> Channel.receive portSubscription
+    |> Procedure.await
     |> Procedure.run ProcMsg ReceivedPortMessage
 
 keyPressProcedure : Cmd Msg
 keyPressProcedure =
-  Procedure.waitFor (\_ keyPress -> keyPress == "Z") (\tagger -> 
+  Channel.subscribe (\tagger ->
     Browser.Events.onKeyPress <| Decode.map tagger keyDecoder
   )
-  |> Procedure.map (\_ -> True)
-  |> Procedure.run ProcMsg PressedZ
+    |> Channel.filter (\_ keyPress -> keyPress == "Z")
+    |> Procedure.await
+    |> Procedure.map (\_ -> True)
+    |> Procedure.run ProcMsg PressedZ
 
 keyDecoder : Decoder String
 keyDecoder =
@@ -38,7 +48,8 @@ type Msg
   | ReceivedPortMessage String
   | PressedZ Bool
   | HandleInput String
-  | HandleClick
+  | TriggerAsyncPort
+  | TriggerSyncPort
 
 type alias Model =
   { portMessage: String
@@ -65,7 +76,8 @@ view model =
   [ Html.h1 [ dataAttribute "data-on-type" ] [ pressedKeyMessage model ]
   , Html.div []
     [ Html.input [ dataAttribute "data-port-input", Events.onInput HandleInput ] []
-    , Html.button [ dataAttribute "data-port-submit", Events.onClick HandleClick ] [ Html.text "Click Me" ]
+    , Html.button [ dataAttribute "data-port-async-submit", Events.onClick TriggerAsyncPort ] [ Html.text "Click Me for Async" ]
+    , Html.button [ dataAttribute "data-port-sync-submit", Events.onClick TriggerSyncPort ] [ Html.text "Click Me for Synchronous" ]
     ]
   , Html.div [ dataAttribute "data-port-message" ]
     [ Html.text model.portMessage 
@@ -87,7 +99,7 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     ProcMsg pMsg ->
-      Procedure.update ProcMsg pMsg model.procModel
+      Procedure.update pMsg model.procModel
         |> Tuple.mapFirst (\updated -> { model | procModel = updated })
     ReceivedPortMessage message ->
       ( { model | portMessage = message }, Cmd.none )
@@ -95,8 +107,10 @@ update msg model =
       ( { model | didPressZ = didPress }, Cmd.none )
     HandleInput input ->
       ( { model | portInput = input }, Cmd.none )
-    HandleClick ->
-      ( model, portProcedure model.portInput )
+    TriggerAsyncPort ->
+      ( model, asyncPortProcedure model.portInput )
+    TriggerSyncPort ->
+      ( model, syncPortProcedure model.portInput )
     
 subscriptions : Model -> Sub Msg
 subscriptions model =

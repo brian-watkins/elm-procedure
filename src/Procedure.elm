@@ -4,17 +4,16 @@ module Procedure exposing
   , init
   , update
   , subscriptions
-  , ProcedureId
   , Step
+  , Channel
   , do
   , fetch
   , provide
   , collect
-  , wait
-  , waitFor
   , break
   , catch
   , andThen
+  , await
   , map, map2, map3
   , mapError
   , try
@@ -23,7 +22,7 @@ module Procedure exposing
 
 {-| Chain together functions that generate `Cmd` values and `Sub` values. 
 
-@docs ProcedureId, Step
+@docs Step
 
 # Execute a Procedure
 @docs run, try
@@ -34,11 +33,11 @@ module Procedure exposing
 # Basic Steps
 @docs provide, do, fetch, collect, break
 
-# Steps that Wait
-@docs wait, waitFor
-
 # Map a Step
 @docs map, map2, map3, mapError
+
+# Use a Channel
+@docs Channel, await
 
 # Use a Procedure
 @docs Msg, Model, init, update, subscriptions
@@ -48,21 +47,20 @@ module Procedure exposing
 import Task
 import Dict exposing (Dict)
 import Process
-
-
-{-| Represents the unique identifier assigned to each procedure.
-
-This is most useful in `do` and `waitFor` when you might pass the identifier
-through a port to find a particular subscription. 
--}
-type alias ProcedureId =
-  Int
+import Procedure.Internal exposing (ProcedureId, Channel(..), Step(..), Msg(..))
+import Procedure.Channel
 
 
 {-| Represents a step in a procedure.
 -}
 type alias Step e a msg =
-  ProcedureId -> (Msg msg -> msg) -> (Result e a -> msg) -> Cmd msg
+  Procedure.Internal.Step e a msg
+
+
+{-| Represents a method for receiving messages from the outside world. 
+-}
+type alias Channel a msg =
+  Procedure.Internal.Channel a msg
 
 
 {-| Generate a step that executes a `Cmd` with a callback function.
@@ -81,94 +79,69 @@ that to a string, you could do the following:
 -}
 fetch : ((a -> msg) -> Cmd msg) -> Step e a msg
 fetch generator =
-  \_ _ tagger ->
-    generator <| tagger << Ok
+  Step <| 
+    \_ _ tagger ->
+      generator <| tagger << Ok
+
+
+{-| Generate a step that opens a `Channel` and waits for the first message to be processed.
+
+For example, if you wanted to send a request via a port command and wait for a response on some port subscription,
+you could do the following:
+
+    Channel.send myPortCommand
+      |> Channel.receive myPortSubscription
+      |> Procedure.await
+      |> Procedure.run ProcedureTagger DataTagger
+
+-}
+await : Channel a msg -> Step e a msg
+await (Channel channel) =
+  Step <| 
+    \procId msgTagger resultTagger ->
+      let
+        requestCommandMsg =
+          channel.requestGenerator procId
+            |> msgTagger << AndThen
+      in
+        channel.receiver (
+          \aData ->
+            if channel.predicate procId aData then
+              resultTagger <| Ok aData
+            else
+              msgTagger Continue
+        )
+          |> Task.succeed
+          |> Task.perform (msgTagger << Subscribe procId requestCommandMsg)
 
 
 {-| Generate a step that executes a `Cmd` without a callback.
 
-This is mainly useful for executing port functions that generate `Cmd` values. 
-Usually, this would be used in conjunction with wait like so:
+Use `do` to execute port functions that generate `Cmd` values. 
 
-    Procedure.do (\_ -> myFunPort)
-      |> Procedure.andThen (Procedure.wait myFunSubscription)
-      |> Procedure.run ProcedureTagger SubResultTagger
-
-The `ProcedureId` is available when calling the `Cmd`-generating function. See
-`waitFor` for an example of when that might come in handy.
--}
-do : (ProcedureId -> Cmd msg) -> Step Never () msg
-do generator =
-  \procId msgTagger resultTagger ->
-    Task.succeed ()
-      |> Task.perform (\_ ->
-        let
-          nextCommand =
-            Task.succeed ()
-              |> Task.perform (resultTagger << Ok)
-        in
-          Cmd.batch [ generator procId, nextCommand ]
-            |> Execute procId
-            |> msgTagger
-      )
-
-
-{-| Generate a step that waits for a subscription.
-
-Perhaps in 30 seconds you want to trigger some command:
-
-    Procedure.wait (Time.every 30 * 1000)
-      |> Procedure.andThen (Procedure.provide "My Message")
+    Procedure.do myFunPortCommand
+      |> Procedure.map (\_ -> "We did it!")
       |> Procedure.run ProcedureTagger StringTagger
 
-Note: After a message is received by the subscription, it will no
-longer be registered to accept messages until this procedure is
-executed again.
+If you want to send a port command and expect a response via some subscription, use
+a `Channel`.
 
 -}
-wait : ((a -> msg) -> Sub msg) -> Step e a msg
-wait =
-  waitFor (\_ _ -> True)
-
-
-{-| Generate a step that waits for a particular value from a subscription.
-
-Let's say you have two ports, one that generates a `Cmd` that makes a request
-and one that generates a `Sub` that receives the response. You might worry that
-a response you receive in the subscription might not match the request. 
-
-To address this, you could use `do` to pass the `ProcedureId` through the port
-and then pass it back in the subscription's data. Use `waitFor` to check the
-data received to see if it contains the expected `ProcedureId`. 
-
-    Procedure.do (\procId -> myPortRequest procId)
-      |> Procedure.andThen (
-        Procedure.waitFor
-          (\procId data -> data.id == procId)
-          (myPortResponse)
-      )
-      |> Procedure.run ProcedureTagger ResponseDataTagger
-
-If the message received does not satisfy the predicate, then it will be ignored
-by this procedure (but not by other procedures running independently).
-
-Note: After a message is received by the subscription, it will no
-longer be registered to accept messages until this procedure is
-executed again.
-
--}
-waitFor : (ProcedureId -> a -> Bool) -> ((a -> msg) -> Sub msg) -> Step e a msg
-waitFor predicate generator =
-  \procId msgTagger resultTagger ->
-    generator (
-      \aData ->
-        if predicate procId aData then
-          resultTagger <| Ok aData
-        else
-          msgTagger Continue
-    )
-      |> Task.succeed
-      |> Task.perform (msgTagger << Subscribe procId)
+do : Cmd msg -> Step Never () msg
+do command =
+  Step <| 
+    \procId msgTagger resultTagger ->
+      Task.succeed ()
+        |> Task.perform (\_ ->
+          let
+            nextCommand =
+              Task.succeed ()
+                |> Task.perform (resultTagger << Ok)
+          in
+            Cmd.batch [ command, nextCommand ]
+              |> Execute procId
+              |> msgTagger
+        )
 
 
 {-| Generate a step that simply provides a value.
@@ -212,9 +185,10 @@ then the result would be `Err "File is too long!"`.
 -}
 break : e -> Step e a msg
 break value =
-  \_ _ tagger ->
-    Task.succeed value
-      |> Task.perform (tagger << Err)
+  Step <| 
+    \_ _ tagger ->
+      Task.succeed value
+        |> Task.perform (tagger << Err)
 
 
 {-| Generate a new step when a previous step is the result of a `break` step.
@@ -303,8 +277,9 @@ addToList step collector =
 
 
 emptyStep : Step e a msg
-emptyStep _ _ _ =
-  Cmd.none
+emptyStep =
+  Step <|
+    \_ _ _ -> Cmd.none
 
 
 {-| Generate a step that transforms the value of the previous step.
@@ -378,18 +353,23 @@ mapError mapper step =
 
 
 next : Step e a msg -> (Result e a -> Step f b msg) -> Step f b msg
-next step resultMapper =
-  \procId msgTagger tagger ->
-    step procId msgTagger <|
-      \aResult ->
-        (resultMapper aResult) procId msgTagger tagger
-          |> msgTagger << Execute procId
+next (Step step) resultMapper =
+  Step <| 
+    \procId msgTagger tagger ->
+      step procId msgTagger <|
+        \aResult ->
+          let
+            (Step nextStep) =
+              resultMapper aResult
+          in
+            nextStep procId msgTagger tagger
+              |> msgTagger << Execute procId
 
 
 {-| Execute a procedure that may fail. 
 -}
 try : (Msg msg -> msg) -> (Result e a -> msg) -> Step e a msg -> Cmd msg
-try msgTagger tagger step =
+try msgTagger tagger (Step step) =
   Task.succeed (\procId -> step procId msgTagger tagger)
     |> Task.perform (msgTagger << Initiate)
 
@@ -419,11 +399,8 @@ You should provide a message type that wraps these values like so:
       = ProcMsg (Procedure.Msg AppMsg)
 
 -}
-type Msg msg
-  = Initiate (ProcedureId -> Cmd msg)
-  | Execute ProcedureId (Cmd msg)
-  | Subscribe ProcedureId (Sub msg)
-  | Continue
+type alias Msg msg
+  = Procedure.Internal.Msg msg
 
 
 {-| Represents the internal state used to track running procedures. 
@@ -478,14 +455,14 @@ You should add this to your application's update function like so:
             |> Tuple.mapFirst (\updated -> { appModel | procModel = updated })
 
 -}
-update : (Msg msg -> msg) -> Msg msg -> Model msg -> (Model msg, Cmd msg)
-update msgTagger msg (Model registry) =
-  updateProcedures msgTagger msg registry
+update : Msg msg -> Model msg -> (Model msg, Cmd msg)
+update msg (Model registry) =
+  updateProcedures msg registry
     |> Tuple.mapFirst Model
 
 
-updateProcedures : (Msg msg -> msg) -> Msg msg -> Registry msg -> (Registry msg, Cmd msg)
-updateProcedures msgTagger msg registry =
+updateProcedures : Msg msg -> Registry msg -> (Registry msg, Cmd msg)
+updateProcedures msg registry =
   case msg of
     Initiate generator ->
       ( { registry | nextId = registry.nextId + 1 }
@@ -495,18 +472,20 @@ updateProcedures msgTagger msg registry =
       ( { registry | procedures = Dict.remove procedureId registry.procedures }
       , cmd
       )
-    Subscribe procedureId sub ->
+    Subscribe procedureId requestMessage sub ->
       ( { registry | procedures = Dict.insert procedureId (procedureModel sub) registry.procedures }
-      , Cmd.map msgTagger <| triggerUpdate 0
+      , sendMessageAfter 0 requestMessage
       )
+    AndThen cmd ->
+      ( registry, cmd )
     Continue ->
       ( registry, Cmd.none )
 
 
-triggerUpdate : Float -> Cmd (Msg msg)
-triggerUpdate timeout =
+sendMessageAfter : Float -> msg -> Cmd msg
+sendMessageAfter timeout msg =
   Process.sleep timeout
-    |> Task.perform (always Continue)
+    |> Task.perform (always msg)
 
 
 {-| Get any subscriptions necessary for running procedures. 

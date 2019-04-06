@@ -1,4 +1,4 @@
-port module DoCommandTests exposing (..)
+port module SendToChannelTests exposing (..)
 
 import Expect
 import Test exposing (..)
@@ -9,17 +9,19 @@ import Elmer.Spy as Spy
 import Elmer.Spy.Matchers exposing (calls, hasArgs, stringArg)
 import TestHelpers as Helpers exposing (Msg(..))
 import Procedure
+import Procedure.Channel as Channel
 
 
-doCommandTests : Test
-doCommandTests =
-  describe "when a command without a callback is triggered" <|
+sendAndReceiveChannelTests : Test
+sendAndReceiveChannelTests =
+  describe "when send is used with receive to initialize a channel" <|
   let
       procedureState =
         Helpers.procedureCommandTestState
           |> Command.send (\_ -> 
-              Procedure.do (\_ -> Helpers.stringPortCommand "Fun!")
-                |> Procedure.andThen (\_ -> Procedure.wait <| Helpers.stringSubscription "Triggered by port")
+              Channel.send (\_ -> Helpers.stringPortCommand "Fun!")
+                |> Channel.receive (Helpers.stringSubscription "Triggered by port")
+                |> Procedure.await
                 |> Procedure.map (\result -> "Mapped: " ++ result)
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| result ++ "!!!")
                 |> Procedure.run ProcedureTagger TestStringTagger
@@ -35,23 +37,19 @@ doCommandTests =
         |> Subscription.with (\_ -> Helpers.testSubscriptions)
         |> Subscription.send "string-subscription" "received awesome value from subscription"
         |> Helpers.expectValue "Mapped: Triggered by port then received awesome value from subscription!!!"
-  ]
-
-
-procedureIdTests : Test
-procedureIdTests =
-  describe "when do is used to trigger a command"
-  [ test "it provides the procedureId" <|
+  , test "it provides the procedureId" <|
     \() ->
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
-            Procedure.do (\procedureId -> Helpers.stringPortCommand <| String.fromInt procedureId)
-              |> Procedure.andThen (\_ -> Procedure.wait <| Helpers.stringSubscription "Triggered by port")
+            Channel.send (\procedureId -> Helpers.stringPortCommand <| String.fromInt procedureId)
+              |> Channel.receive (Helpers.stringSubscription "Triggered by port")
+              |> Procedure.await
               |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Command.send (\_ ->
-            Procedure.do (\procedureId -> Helpers.stringPortCommand <| String.fromInt procedureId)
-              |> Procedure.andThen (\_ -> Procedure.wait <| Helpers.stringSubscription "Triggered by port")
+            Channel.send (\procedureId -> Helpers.stringPortCommand <| String.fromInt procedureId)
+              |> Channel.receive (Helpers.stringSubscription "Triggered by port")
+              |> Procedure.await
               |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Subscription.with (\_ -> Helpers.testSubscriptions)

@@ -15,16 +15,29 @@ describe("Procedures", () => {
       .should('contain', "You pressed Z!!!")
   })
 
-  it("runs a procedure that makes a request to a port and processes the response", () => {
+  it("runs a procedure that makes a request to a port and processes the response asynchronously", () => {
     cy.visit("http://localhost:9732")
 
     cy.get("[data-port-input]")
-      .type("Hello!")
+      .type("Hello async!")
 
-    cy.get("[data-port-submit]")
+    cy.get("[data-port-async-submit]")
       .click()
 
     cy.get("[data-port-message]")
-      .should('contain', 'Thanks for the message: Hello!')
+      .should('contain', 'Thanks for the message: Hello async!')
+  })
+
+  it("runs a procedure that makes a request to a port and processes the response synchronously", () => {
+    cy.visit("http://localhost:9732")
+
+    cy.get("[data-port-input]")
+      .type("Hello synchronous!")
+
+    cy.get("[data-port-sync-submit]")
+      .click()
+
+    cy.get("[data-port-message]")
+      .should('contain', 'Thanks for the message: Hello synchronous!')
   })
 })

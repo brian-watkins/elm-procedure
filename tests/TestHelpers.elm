@@ -3,6 +3,7 @@ port module TestHelpers exposing
   , procedureCommandTestState
   , expectValue
   , expectError
+  , expectUnit
   , stringCommand
   , stringPortCommand
   , stringSubscription
@@ -57,6 +58,14 @@ expectError expected testState =
   testState
     |> Elmer.expectModel (\model ->
         Expect.equal model.error expected
+    )
+
+
+expectUnit : TestState Model Msg -> Expect.Expectation
+expectUnit testState =
+  testState
+    |> Elmer.expectModel (\model ->
+      Expect.true "Expected to receive a unit" model.didReceiveUnit
     )
 
 
@@ -142,11 +151,13 @@ type Msg
   = ProcedureTagger (Procedure.Msg Msg)
   | TestStringTagger String
   | TestResultTagger (Result String String)
+  | TestUnitTagger ()
 
 
 type alias Model =
   { procedureModel : Procedure.Model Msg
   , message : String
+  , didReceiveUnit : Bool
   , error : String
   }
 
@@ -154,6 +165,7 @@ type alias Model =
 testModel =
   { procedureModel = Procedure.init
   , message = ""
+  , didReceiveUnit = False
   , error = ""
   }
 
@@ -162,16 +174,18 @@ testUpdate : Msg -> Model -> (Model, Cmd Msg)
 testUpdate msg model =
   case msg of
     ProcedureTagger pMsg ->
-      Procedure.update ProcedureTagger pMsg model.procedureModel
+      Procedure.update pMsg model.procedureModel
         |> Tuple.mapFirst (\updatedModel -> { model | procedureModel = updatedModel })
     TestStringTagger value ->
-      ({ model | message = value }, Cmd.none)
+      ( { model | message = value }, Cmd.none )
     TestResultTagger value ->
       case value of
         Ok data ->
-          ({ model | message = data }, Cmd.none)
+          ( { model | message = data }, Cmd.none )
         Err data ->
-          ({ model | error = data }, Cmd.none)
+          ( { model | error = data }, Cmd.none )
+    TestUnitTagger _ ->
+      ( { model | didReceiveUnit = True }, Cmd.none )
 
 
 testSubscriptions : Model -> Sub Msg

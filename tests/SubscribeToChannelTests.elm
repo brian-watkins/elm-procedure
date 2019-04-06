@@ -1,4 +1,4 @@
-module WaitForTests exposing (..)
+module SubscribeToChannelTests exposing (..)
 
 import Expect
 import Test exposing (..)
@@ -7,17 +7,21 @@ import Elmer.Command as Command
 import Elmer.Subscription as Subscription
 import TestHelpers as Helpers exposing (Msg(..))
 import Procedure
+import Procedure.Channel as Channel
 
 
-waitTests : Test
-waitTests =
-  describe "wait" <|
+subscribeTests : Test
+subscribeTests =
+  describe "wait on a subscription to a channel" <|
   let
     procedureState =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
             Procedure.fetch (Helpers.stringCommand "First")
-              |> Procedure.andThen (\result -> Procedure.wait <| Helpers.stringSubscription result)
+              |> Procedure.andThen (\result -> 
+                Channel.subscribe (Helpers.stringSubscription result)
+                  |> Procedure.await
+              )
               |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
               |> Procedure.map (\result -> "Mapped: " ++ result)
               |> Procedure.try ProcedureTagger TestResultTagger
@@ -41,8 +45,8 @@ waitTests =
   ]
 
 
-waitForTests : Test
-waitForTests =
+subscribeAndFilterTests : Test
+subscribeAndFilterTests =
   describe "when a subscription expects a particular value"
   [ describe "when the value is received"
     [ test "it processes the remainder of the procedure" <|
@@ -51,8 +55,9 @@ waitForTests =
           |> Command.send (\_ ->
               Procedure.provide "sub-key"
                 |> Procedure.andThen (\result ->
-                  Helpers.keySubscription
-                    |> Procedure.waitFor (\_ desc -> desc.key == result)
+                  Channel.subscribe Helpers.keySubscription
+                    |> Channel.filter (\_ desc -> desc.key == result)
+                    |> Procedure.await
                 )
                 |> Procedure.map .value
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
@@ -70,8 +75,9 @@ waitForTests =
           |> Command.send (\_ ->
               Procedure.provide "sub-key"
                 |> Procedure.andThen (\result ->
-                  Helpers.keySubscription
-                    |> Procedure.waitFor (\_ desc -> desc.key == result)
+                  Channel.subscribe Helpers.keySubscription
+                    |> Channel.filter (\_ desc -> desc.key == result)
+                    |> Procedure.await
                 )
                 |> Procedure.map .value
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
@@ -87,17 +93,18 @@ waitForTests =
   ]
 
 
-waitForProcedureIdTests : Test
-waitForProcedureIdTests =
-  describe "when waiting for a specific value" <|
+filterOnProcedureIdTests : Test
+filterOnProcedureIdTests =
+  describe "when filtering for a specific value" <|
   let
     testState =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
             Procedure.provide "something"
               |> Procedure.andThen (\result ->
-                Helpers.keySubscription
-                  |> Procedure.waitFor (\procedureId desc -> desc.key == String.fromInt procedureId)
+                Channel.subscribe Helpers.keySubscription
+                  |> Channel.filter (\procedureId desc -> desc.key == String.fromInt procedureId)
+                  |> Procedure.await
               )
               |> Procedure.map .value
               |> Procedure.try ProcedureTagger TestResultTagger
@@ -105,8 +112,9 @@ waitForProcedureIdTests =
         |> Command.send (\_ ->
             Procedure.provide "something else"
               |> Procedure.andThen (\result ->
-                Helpers.intSubscription
-                  |> Procedure.waitFor (\procedureId number -> number == procedureId)
+                  Channel.subscribe Helpers.intSubscription
+                    |> Channel.filter (\procedureId number -> number == procedureId)
+                    |> Procedure.await
               )
               |> Procedure.map String.fromInt
               |> Procedure.try ProcedureTagger TestResultTagger
@@ -126,23 +134,31 @@ waitForProcedureIdTests =
   ]
 
 
-waitMultipleTests : Test
-waitMultipleTests =
-  describe "when procedures with different subscriptions are running" <|
+multipleChannelTests : Test
+multipleChannelTests =
+  describe "when procedures with different channels are running" <|
   let
     testState =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
             Procedure.fetch (Helpers.stringCommand "First")
-              |> Procedure.andThen (\result -> Procedure.wait <| Helpers.stringSubscription result)
+              |> Procedure.andThen (\result -> 
+                Channel.subscribe (Helpers.stringSubscription result)
+                  |> Procedure.await
+              )
               |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
               |> Procedure.map (\result -> "Mapped: " ++ result)
               |> Procedure.try ProcedureTagger TestResultTagger
           )
         |> Command.send (\_ ->
             Procedure.fetch (Helpers.stringCommand "Second")
-              |> Procedure.andThen (\result -> Procedure.wait <| Helpers.intSubscription)
-              |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ String.fromInt result)
+              |> Procedure.andThen (\result -> 
+                Channel.subscribe Helpers.intSubscription
+                  |> Procedure.await
+              )
+              |> Procedure.andThen (\result ->
+                Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ String.fromInt result
+              )
               |> Procedure.map (\result -> "Mapped: " ++ result)
               |> Procedure.try ProcedureTagger TestResultTagger
         )
@@ -174,20 +190,26 @@ waitMultipleTests =
   ]
 
 
-waitAndMapTests : Test
-waitAndMapTests =
-  describe "when two procedures are waiting"
-  [ test "it handles both procedures sequentially" <|
+mapTwoChannelsTests : Test
+mapTwoChannelsTests =
+  describe "when the procedure is waiting on two channels"
+  [ test "it processes the channels sequentially" <|
     \() ->
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
           Procedure.map2 (\a b -> a ++ " AND " ++ b)
             ( Procedure.fetch (Helpers.stringCommand "First String Command")
-                |> Procedure.andThen (\result -> Procedure.wait <| Helpers.stringSubscription result)
+                |> Procedure.andThen (\result ->
+                  Channel.subscribe (Helpers.stringSubscription result)
+                    |> Procedure.await
+                )
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
             )
             ( Procedure.provide 787
-                |> Procedure.andThen (\_ -> Procedure.wait <| Helpers.intSubscription)
+                |> Procedure.andThen (\_ -> 
+                  Channel.subscribe Helpers.intSubscription
+                    |> Procedure.await
+                )
                 |> Procedure.map (\result -> "Mapped Int: " ++ String.fromInt result)
             )
             |> Procedure.try ProcedureTagger TestResultTagger
