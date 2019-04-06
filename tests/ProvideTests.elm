@@ -1,4 +1,4 @@
-module SendTests exposing (..)
+module ProvideTests exposing (..)
 
 import Expect
 import Test exposing (..)
@@ -7,10 +7,10 @@ import TestHelpers as Helpers exposing (Msg(..))
 import Procedure
 
 
-sendTests : Test
-sendTests =
-  describe "when send is used"
-  [ test "it sends the value" <|
+provideTests : Test
+provideTests =
+  describe "when provide is used"
+  [ test "it provides the value to the next step" <|
     \() -> 
       Helpers.procedureCommandTestState
         |> Command.send (\_ -> 
