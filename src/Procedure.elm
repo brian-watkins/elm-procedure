@@ -1,26 +1,13 @@
 module Procedure exposing
-  ( Msg
-  , Model
-  , init
-  , update
-  , subscriptions
-  , Step
-  , Channel
-  , do
-  , fetch
-  , provide
-  , collect
-  , break
-  , catch
-  , andThen
-  , await
-  , map, map2, map3
-  , mapError
-  , try
-  , run
+  ( Msg, Model, init, update, subscriptions
+  , Step, Channel
+  , do, fetch, provide, collect, fromTask, break
+  , catch, andThen, await
+  , map, map2, map3, mapError
+  , try, run
   )
 
-{-| Chain together functions that generate `Cmd` values and `Sub` values. 
+{-| Orchestrate commands, subscriptions, and tasks.
 
 @docs Step
 
@@ -31,20 +18,20 @@ module Procedure exposing
 @docs andThen, catch
 
 # Basic Steps
-@docs provide, do, fetch, collect, break
-
-# Map a Step
-@docs map, map2, map3, mapError
+@docs provide, fetch, collect, fromTask, break, do
 
 # Use a Channel
 @docs Channel, await
+
+# Map a Step
+@docs map, map2, map3, mapError
 
 # Use a Procedure
 @docs Msg, Model, init, update, subscriptions
 
 -}
 
-import Task
+import Task exposing (Task)
 import Dict exposing (Dict)
 import Process
 import Procedure.Internal exposing (ProcedureId, Channel(..), Step(..), Msg(..))
@@ -70,9 +57,7 @@ that to a string, you could do the following:
 
     Procedure.fetch (File.Select.file ["application/zip"])
       |> Procedure.andThen (\file -> 
-        File.toString file
-          |> Task.perform
-          |> Procedure.fetch
+        Procedure.fromTask <| File.toString file
       )
       |> Procedure.run ProcedureTagger StringTagger
 
@@ -160,15 +145,35 @@ provide value =
         |> Task.perform tagger
 
 
+{-| Generate a step that runs a task.
+
+For example, if you wanted to have the user select a file and then convert
+that to a string, you could do the following:
+
+    Procedure.fetch (File.Select.file ["application/zip"])
+      |> Procedure.andThen (\file -> 
+        Procedure.fromTask <| File.toString file
+      )
+      |> Procedure.run ProcedureTagger StringTagger
+
+If the task fails, the procedure will break at this point, just as
+if `Procedure.break` had been used.
+
+-}
+fromTask : Task e a -> Step e a msg
+fromTask task =
+  Step <|
+    \procId msgTagger resultTagger ->
+      Task.attempt resultTagger task
+
+
 {-| Generate a step that breaks out of the current procedure.
 
 You can use this to stop a procedure early:
 
     Procedure.fetch (File.Select.file ["text/plain"])
       |> Procedure.andThen (\file -> 
-        File.toString file
-          |> Task.perform
-          |> Procedure.fetch
+        Procedure.fromTask <| File.toString file
       )
       |> Procedure.andThen (\text ->
         if String.length text > 100 then
