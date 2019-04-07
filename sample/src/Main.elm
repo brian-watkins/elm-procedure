@@ -14,12 +14,14 @@ port syncPort : String -> Cmd msg
 port asyncPort : String -> Cmd msg
 port portSubscription : (String -> msg) -> Sub msg
 
+
 asyncPortProcedure : String -> Cmd Msg
 asyncPortProcedure word =
   Channel.send (\_ -> asyncPort word)
     |> Channel.receive portSubscription
     |> Procedure.await
     |> Procedure.run ProcMsg ReceivedPortMessage
+
 
 syncPortProcedure : String -> Cmd Msg
 syncPortProcedure word =
@@ -28,33 +30,37 @@ syncPortProcedure word =
     |> Procedure.await
     |> Procedure.run ProcMsg ReceivedPortMessage
 
+
 keyPressProcedure : Cmd Msg
 keyPressProcedure =
   Channel.subscribe (\tagger ->
     Browser.Events.onKeyPress <| Decode.map tagger keyDecoder
   )
-    |> Channel.filter (\_ keyPress -> keyPress == "Z")
-    |> Procedure.await
-    |> Procedure.map (\_ -> True)
-    |> Procedure.run ProcMsg PressedZ
+    |> Channel.filter (\_ keyPress -> keyPress == "Z" || keyPress == "X" || keyPress == "Y")
+    |> Procedure.open
+    |> Procedure.map (\key -> key ++ "!!!")
+    |> Procedure.run ProcMsg PressedKey
+
 
 keyDecoder : Decoder String
 keyDecoder =
   Decode.field "key" Decode.string
 
+
 ---
+
 
 type Msg
   = ProcMsg (Procedure.Config.Msg Msg)
   | ReceivedPortMessage String
-  | PressedZ Bool
+  | PressedKey String
   | HandleInput String
   | TriggerAsyncPort
   | TriggerSyncPort
 
 type alias Model =
   { portMessage: String
-  , didPressZ: Bool
+  , didPressSpecialKey: Maybe String
   , portInput: String
   , procModel: (Procedure.Config.Model Msg)
   }
@@ -62,7 +68,7 @@ type alias Model =
 defaultModel : Model
 defaultModel =
   { portMessage = ""
-  , didPressZ = False
+  , didPressSpecialKey = Nothing
   , portInput = ""
   , procModel = Procedure.Config.init
   }
@@ -91,10 +97,11 @@ dataAttribute name =
 
 pressedKeyMessage : Model -> Html Msg
 pressedKeyMessage model =
-  if model.didPressZ then
-    Html.text "You pressed Z!!!"
-  else
-    Html.text "You have not yet pressed Z."
+  case model.didPressSpecialKey of
+    Just key ->
+      Html.text <| "You pressed " ++ key
+    Nothing ->
+      Html.text "You have not yet pressed X, Y, or Z."
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -104,8 +111,8 @@ update msg model =
         |> Tuple.mapFirst (\updated -> { model | procModel = updated })
     ReceivedPortMessage message ->
       ( { model | portMessage = message }, Cmd.none )
-    PressedZ didPress ->
-      ( { model | didPressZ = didPress }, Cmd.none )
+    PressedKey key ->
+      ( { model | didPressSpecialKey = Just key }, Cmd.none )
     HandleInput input ->
       ( { model | portInput = input }, Cmd.none )
     TriggerAsyncPort ->

@@ -1,5 +1,6 @@
 module Procedure.Internal exposing
   ( ProcedureId
+  , ChannelId
   , Msg(..)
   , Step(..)
   , Channel(..)
@@ -8,11 +9,14 @@ module Procedure.Internal exposing
 type alias ProcedureId =
   Int
 
+type alias ChannelId =
+  Int
+
 type Msg msg
   = Initiate (ProcedureId -> Cmd msg)
   | Execute ProcedureId (Cmd msg)
-  | Subscribe ProcedureId msg (Sub msg)
-  | AndThen (Cmd msg)
+  | Subscribe ProcedureId msg (ChannelId -> Sub msg)
+  | Unsubscribe ProcedureId ChannelId msg
   | Continue
 
 

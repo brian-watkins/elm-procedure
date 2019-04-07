@@ -1,7 +1,7 @@
 module Procedure exposing
   ( Step, Channel
   , do, fetch, provide, collect, fromTask, break
-  , catch, andThen, await
+  , catch, andThen, await, open
   , map, map2, map3, mapError
   , try, run
   )
@@ -20,7 +20,7 @@ module Procedure exposing
 @docs andThen, catch
 
 # Use a Channel
-@docs Channel, await
+@docs Channel, await, open
 
 # Map a Step
 @docs map, map2, map3, mapError
@@ -28,8 +28,7 @@ module Procedure exposing
 -}
 
 import Task exposing (Task)
-import Procedure.Internal exposing (Channel(..), Step(..), Msg(..))
-import Procedure.Channel
+import Procedure.Internal exposing (ProcedureId, ChannelId, Channel(..), Step(..), Msg(..))
 
 
 {-| Represents a step in a procedure.
@@ -75,22 +74,56 @@ you could do the following:
 
 -}
 await : Channel a msg -> Step e a msg
-await (Channel channel) =
-  Step <| 
+await =
+  consumeChannel <| 
+    \procId channelId msgTagger resultTagger data ->
+      Ok data
+        |> resultTagger
+        |> msgTagger << Unsubscribe procId channelId
+
+
+{-| Generate a step that opens a `Channel` and processes messages as they are received.
+
+For example, if you wanted to filter and map messages received over a subscription before passing these
+to your update function, you could do the following:
+
+    Channel.subscribe mySubscription
+      |> Channel.filter (\_ data -> modBy 2 data == 0)
+      |> Procedure.open
+      |> Procedure.map String.fromInt
+      |> Procedure.run ProcedureTagger StringTagger
+
+Then, as numbers come in through `mySubscription`, a `StringTagger` message will be sent
+that tags the number as a string.
+
+-}
+open : Channel a msg -> Step e a msg
+open =
+  consumeChannel <|
+    \_ _ _ resultTagger data ->
+      resultTagger <| Ok data
+
+
+consumeChannel : (ProcedureId -> ChannelId -> (Msg msg -> msg) -> (Result e a -> msg) -> a -> msg) 
+  -> Channel a msg 
+  -> Step e a msg
+consumeChannel dataTagger (Channel channel) =
+  Step <|
     \procId msgTagger resultTagger ->
       let
         requestCommandMsg =
           channel.requestGenerator procId
-            |> msgTagger << AndThen
+            |> msgTagger << Execute procId
+
+        subGenerator channelId =
+          channel.receiver <|
+            \aData ->
+              if channel.predicate procId aData then
+                dataTagger procId channelId msgTagger resultTagger aData
+              else
+                msgTagger Continue
       in
-        channel.receiver (
-          \aData ->
-            if channel.predicate procId aData then
-              resultTagger <| Ok aData
-            else
-              msgTagger Continue
-        )
-          |> Task.succeed
+        Task.succeed subGenerator
           |> Task.perform (msgTagger << Subscribe procId requestCommandMsg)
 
 

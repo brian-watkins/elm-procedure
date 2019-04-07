@@ -2,6 +2,7 @@ port module TestHelpers exposing
   ( Msg(..)
   , procedureCommandTestState
   , expectValue
+  , expectValues
   , expectError
   , expectUnit
   , stringCommand
@@ -9,6 +10,7 @@ port module TestHelpers exposing
   , stringSubscription
   , keySubscription
   , testSubscriptions
+  , testSubscriptionsWithExtraSubs
   , intCommand
   , intSubscription
   )
@@ -51,6 +53,14 @@ expectValue expected testState =
   testState
     |> Elmer.expectModel (\model ->
         Expect.equal model.message expected
+    )
+
+
+expectValues : List String -> TestState Model Msg -> Expect.Expectation
+expectValues expected testState =
+  testState
+    |> Elmer.expectModel (\model ->
+      Expect.equal expected model.messages
     )
 
 
@@ -151,13 +161,17 @@ intSubscriptionSpy =
 type Msg
   = ProcedureTagger (Procedure.Config.Msg Msg)
   | TestStringTagger String
+  | TestStringAccumulator String
   | TestResultTagger (Result String String)
   | TestUnitTagger ()
+  | UnusedIntSubTagger Int
+  | UnusedStringSubTagger String
 
 
 type alias Model =
   { procedureModel : Procedure.Config.Model Msg
   , message : String
+  , messages : List String
   , didReceiveUnit : Bool
   , error : String
   }
@@ -166,6 +180,7 @@ type alias Model =
 testModel =
   { procedureModel = Procedure.Config.init
   , message = ""
+  , messages = []
   , didReceiveUnit = False
   , error = ""
   }
@@ -179,6 +194,8 @@ testUpdate msg model =
         |> Tuple.mapFirst (\updatedModel -> { model | procedureModel = updatedModel })
     TestStringTagger value ->
       ( { model | message = value }, Cmd.none )
+    TestStringAccumulator value ->
+      ( { model | messages = value :: model.messages }, Cmd.none )
     TestResultTagger value ->
       case value of
         Ok data ->
@@ -187,11 +204,24 @@ testUpdate msg model =
           ( { model | error = data }, Cmd.none )
     TestUnitTagger _ ->
       ( { model | didReceiveUnit = True }, Cmd.none )
+    UnusedIntSubTagger _ ->
+      ( model, Cmd.none )
+    UnusedStringSubTagger _ ->
+      ( model, Cmd.none )
 
 
 testSubscriptions : Model -> Sub Msg
 testSubscriptions model =
   Procedure.Config.subscriptions model.procedureModel
+
+
+testSubscriptionsWithExtraSubs : Model -> Sub Msg
+testSubscriptionsWithExtraSubs model =
+  Sub.batch
+  [ Procedure.Config.subscriptions model.procedureModel
+  , intSubscription UnusedIntSubTagger
+  , stringSubscription "unused" UnusedStringSubTagger
+  ]
 
 
 emptyView : Model -> Html Msg

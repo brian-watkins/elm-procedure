@@ -15,7 +15,7 @@ module Procedure.Config exposing
 import Dict exposing (Dict)
 import Process
 import Task
-import Procedure.Internal exposing (ProcedureId, Msg(..))
+import Procedure.Internal exposing (ProcedureId, ChannelId, Msg(..))
 
 
 {-| Represents the internal `Msg` values used to track the state of a procedure.
@@ -61,13 +61,14 @@ init =
 
 
 type alias ProcedureModel msg =
-  { subscriptions: Sub msg
+  { nextId: ChannelId
+  , channels: Dict ChannelId (Sub msg)
   }
 
-
-procedureModel : Sub msg -> ProcedureModel msg
-procedureModel sub =
-  { subscriptions = sub
+defaultProcedureModel : ProcedureModel msg
+defaultProcedureModel =
+  { nextId = 0
+  , channels = Dict.empty
   }
 
 
@@ -97,17 +98,42 @@ updateProcedures msg registry =
       , generator registry.nextId
       )
     Execute procedureId cmd ->
-      ( { registry | procedures = Dict.remove procedureId registry.procedures }
-      , cmd
-      )
-    Subscribe procedureId requestMessage sub ->
-      ( { registry | procedures = Dict.insert procedureId (procedureModel sub) registry.procedures }
-      , sendMessageAfter 0 requestMessage
-      )
-    AndThen cmd ->
       ( registry, cmd )
+    Subscribe procedureId nextMessage subGenerator ->
+      ( updateProcedureModel (addChannel subGenerator) procedureId registry
+      , sendMessageAfter 0 nextMessage
+      )
+    Unsubscribe procedureId channelId nextMessage ->
+      ( updateProcedureModel (deleteChannel channelId) procedureId registry
+      , sendMessageAfter 0 nextMessage
+      )
     Continue ->
       ( registry, Cmd.none )
+
+
+addChannel : (ChannelId -> Sub msg) -> ProcedureModel msg -> ProcedureModel msg
+addChannel subGenerator procModel =
+  { procModel
+  | nextId = procModel.nextId + 1
+  , channels = Dict.insert procModel.nextId (subGenerator procModel.nextId) procModel.channels
+  }
+
+
+deleteChannel : ChannelId -> ProcedureModel msg -> ProcedureModel msg
+deleteChannel channelId procModel =
+  { procModel | channels = Dict.remove channelId procModel.channels }
+
+
+updateProcedureModel : (ProcedureModel msg -> ProcedureModel msg) -> ProcedureId -> Registry msg -> Registry msg
+updateProcedureModel mapper procedureId registry =
+  let
+    procModel =
+      registry.procedures
+        |> Dict.get procedureId
+        |> Maybe.withDefault defaultProcedureModel
+        |> mapper
+  in
+    { registry | procedures = Dict.insert procedureId procModel registry.procedures }
 
 
 sendMessageAfter : Float -> msg -> Cmd msg
@@ -131,5 +157,7 @@ with channels, i.e. if you have subscriptions in your procedures.
 subscriptions : Model msg -> Sub msg
 subscriptions (Model registry) =
   Dict.values registry.procedures
-    |> List.map .subscriptions
+    |> List.map .channels
+    |> List.map Dict.values
+    |> List.concat
     |> Sub.batch
