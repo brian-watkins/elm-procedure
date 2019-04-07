@@ -31,7 +31,7 @@ import Procedure.Internal exposing (ProcedureId, Channel(..))
 {-| Represents the unique identifier assigned to each procedure.
 
 This is most useful when opening a channel by sending a command, where you might pass the identifier
-through a port and filter incoming messages to a subscription.
+through a port and then use it to filter incoming messages to a subscription.
 -}
 type alias ProcedureId =
   Procedure.Internal.ProcedureId

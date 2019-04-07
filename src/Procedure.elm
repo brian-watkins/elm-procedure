@@ -1,6 +1,5 @@
 module Procedure exposing
-  ( Msg, Model, init, update, subscriptions
-  , Step, Channel
+  ( Step, Channel
   , do, fetch, provide, collect, fromTask, break
   , catch, andThen, await
   , map, map2, map3, mapError
@@ -14,11 +13,11 @@ module Procedure exposing
 # Execute a Procedure
 @docs run, try
 
-# Build a Procedure
-@docs andThen, catch
-
 # Basic Steps
 @docs provide, fetch, collect, fromTask, break, do
+
+# Build a Procedure
+@docs andThen, catch
 
 # Use a Channel
 @docs Channel, await
@@ -26,15 +25,10 @@ module Procedure exposing
 # Map a Step
 @docs map, map2, map3, mapError
 
-# Use a Procedure
-@docs Msg, Model, init, update, subscriptions
-
 -}
 
 import Task exposing (Task)
-import Dict exposing (Dict)
-import Process
-import Procedure.Internal exposing (ProcedureId, Channel(..), Step(..), Msg(..))
+import Procedure.Internal exposing (Channel(..), Step(..), Msg(..))
 import Procedure.Channel
 
 
@@ -196,24 +190,33 @@ break value =
         |> Task.perform (tagger << Err)
 
 
-{-| Generate a new step when a previous step is the result of a `break` step.
+{-| Generate a new step when some previous step results in an error, usually
+do to processing a `break` step.
 
-For example, you could check the result of some data you receive through a subscription
+For example, you could check the result of some data
 and then break to skip the next steps until you reach a `catch` step.
 
-    Procedure.wait mySubscription
+    Procedure.fetch someCommand
       |> Procedure.andThen (\data ->
         if data.message == "Success" then
           Procedure.provide data
         else
           Procedure.break data.message
       )
-      |> Procedure.andThen (\data -> Procedure.do (\_ -> somePortRequest data))
-      |> Procedure.andThen (\_ -> Procedure.wait somePortResponse)
-      |> Procedure.catch (\errorData -> 
-        Procedure.do (\_ -> Procedure.provide "Some default message")
+      |> Procedure.andThen (\data ->
+        Channel.send (somePortCommand data)
+          |> Channel.receive somePortSubscription
+          |> Procedure.await
       )
+      |> Procedure.catch (\errorData -> 
+        Procedure.provide "Some default message"
+      )
+      |> Procedure.map (\data -> data ++ "!")
       |> Procedure.run ProcedureTagger StringTagger
+
+If the data fetched via `someCommand` is deemed not successful, then 
+the next steps will be skipped and the result of this procedure will
+be `StringTagger "Some default message!"`.
 
 -}
 catch : (e -> Step f a msg) -> Step e a msg -> Step f a msg
@@ -230,7 +233,9 @@ catch stepGenerator step =
 {-| Generate a new step based on the result of the previous step.
 
     Procedure.provide "An awesome value"
-      |> Procedure.andThen (\data -> Procedure.provide <| data ++ "!!!")
+      |> Procedure.andThen (\data -> 
+        Procedure.provide <| data ++ "!!!"
+      )
       |> Procedure.run ProcedureTagger StringTagger
 
 Then the result would be `StringTagger "An awesome value!!!"`.
