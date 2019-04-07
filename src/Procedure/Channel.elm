@@ -73,6 +73,8 @@ subscribe generator =
 
 
 {-| Filter messages received by whatever subscription is listening on this channel.
+
+Note: Calling filter multiple times on a channel simply replaces any existing filter on that channel.
 -}
 filter : (ProcedureId -> a -> Bool) -> Channel a msg -> Channel a msg
 filter predicate (Channel channel) =
