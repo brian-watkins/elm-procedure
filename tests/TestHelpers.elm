@@ -22,6 +22,7 @@ import Html exposing (Html)
 import Task
 import Process
 import Procedure
+import Procedure.Config
 
 
 procedureCommandTestState : TestState Model Msg
@@ -148,14 +149,14 @@ intSubscriptionSpy =
 
 
 type Msg
-  = ProcedureTagger (Procedure.Msg Msg)
+  = ProcedureTagger (Procedure.Config.Msg Msg)
   | TestStringTagger String
   | TestResultTagger (Result String String)
   | TestUnitTagger ()
 
 
 type alias Model =
-  { procedureModel : Procedure.Model Msg
+  { procedureModel : Procedure.Config.Model Msg
   , message : String
   , didReceiveUnit : Bool
   , error : String
@@ -163,7 +164,7 @@ type alias Model =
 
 
 testModel =
-  { procedureModel = Procedure.init
+  { procedureModel = Procedure.Config.init
   , message = ""
   , didReceiveUnit = False
   , error = ""
@@ -174,7 +175,7 @@ testUpdate : Msg -> Model -> (Model, Cmd Msg)
 testUpdate msg model =
   case msg of
     ProcedureTagger pMsg ->
-      Procedure.update pMsg model.procedureModel
+      Procedure.Config.update pMsg model.procedureModel
         |> Tuple.mapFirst (\updatedModel -> { model | procedureModel = updatedModel })
     TestStringTagger value ->
       ( { model | message = value }, Cmd.none )
@@ -190,7 +191,7 @@ testUpdate msg model =
 
 testSubscriptions : Model -> Sub Msg
 testSubscriptions model =
-  Procedure.subscriptions model.procedureModel
+  Procedure.Config.subscriptions model.procedureModel
 
 
 emptyView : Model -> Html Msg
