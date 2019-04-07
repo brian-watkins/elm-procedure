@@ -18,7 +18,7 @@ awaitChannelTests =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
           Channel.subscribe Helpers.intSubscription
-            |> Procedure.await
+            |> Channel.await
             |> Procedure.map String.fromInt
             |> Procedure.run ProcedureTagger TestStringAccumulator
         )
@@ -39,7 +39,7 @@ openChannelTests =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
           Channel.subscribe Helpers.intSubscription
-            |> Procedure.open
+            |> Channel.open
             |> Procedure.map String.fromInt
             |> Procedure.run ProcedureTagger TestStringAccumulator
         )
@@ -57,7 +57,7 @@ openChannelTests =
         |> Command.send (\_ ->
           Channel.subscribe Helpers.intSubscription
             |> Channel.filter (\_ num -> modBy 2 num == 0)
-            |> Procedure.open
+            |> Channel.open
             |> Procedure.map String.fromInt
             |> Procedure.run ProcedureTagger TestStringAccumulator
         )
@@ -80,12 +80,12 @@ openChannelAndAwaitTests =
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
           Channel.subscribe Helpers.intSubscription
-            |> Procedure.open
+            |> Channel.open
             |> Procedure.map String.fromInt
             |> Procedure.andThen (\result ->
               Helpers.stringSubscription result
                 |> Channel.subscribe
-                |> Procedure.await
+                |> Channel.await
             )
             |> Procedure.map (\r -> "After awaiting: " ++ r)
             |> Procedure.run ProcedureTagger TestStringAccumulator

@@ -21,7 +21,7 @@ sendAndReceiveChannelTests =
           |> Command.send (\_ -> 
               Channel.send (\_ -> Helpers.stringPortCommand "Fun!")
                 |> Channel.receive (Helpers.stringSubscription "Triggered by port")
-                |> Procedure.await
+                |> Channel.await
                 |> Procedure.map (\result -> "Mapped: " ++ result)
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| result ++ "!!!")
                 |> Procedure.run ProcedureTagger TestStringTagger
@@ -43,13 +43,13 @@ sendAndReceiveChannelTests =
         |> Command.send (\_ ->
             Channel.send (\procedureId -> Helpers.stringPortCommand <| String.fromInt procedureId)
               |> Channel.receive (Helpers.stringSubscription "Triggered by port")
-              |> Procedure.await
+              |> Channel.await
               |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Command.send (\_ ->
             Channel.send (\procedureId -> Helpers.stringPortCommand <| String.fromInt procedureId)
               |> Channel.receive (Helpers.stringSubscription "Triggered by port")
-              |> Procedure.await
+              |> Channel.await
               |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Subscription.with (\_ -> Helpers.testSubscriptions)

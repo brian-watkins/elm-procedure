@@ -20,7 +20,7 @@ subscribeTests =
             Procedure.fetch (Helpers.stringCommand "First")
               |> Procedure.andThen (\result -> 
                 Channel.subscribe (Helpers.stringSubscription result)
-                  |> Procedure.await
+                  |> Channel.await
               )
               |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
               |> Procedure.map (\result -> "Mapped: " ++ result)
@@ -57,7 +57,7 @@ subscribeAndFilterTests =
                 |> Procedure.andThen (\result ->
                   Channel.subscribe Helpers.keySubscription
                     |> Channel.filter (\_ desc -> desc.key == result)
-                    |> Procedure.await
+                    |> Channel.await
                 )
                 |> Procedure.map .value
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
@@ -77,7 +77,7 @@ subscribeAndFilterTests =
                 |> Procedure.andThen (\result ->
                   Channel.subscribe Helpers.keySubscription
                     |> Channel.filter (\_ desc -> desc.key == result)
-                    |> Procedure.await
+                    |> Channel.await
                 )
                 |> Procedure.map .value
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
@@ -104,7 +104,7 @@ filterOnProcedureIdTests =
               |> Procedure.andThen (\result ->
                 Channel.subscribe Helpers.keySubscription
                   |> Channel.filter (\procedureId desc -> desc.key == String.fromInt procedureId)
-                  |> Procedure.await
+                  |> Channel.await
               )
               |> Procedure.map .value
               |> Procedure.try ProcedureTagger TestResultTagger
@@ -114,7 +114,7 @@ filterOnProcedureIdTests =
               |> Procedure.andThen (\result ->
                   Channel.subscribe Helpers.intSubscription
                     |> Channel.filter (\procedureId number -> number == procedureId)
-                    |> Procedure.await
+                    |> Channel.await
               )
               |> Procedure.map String.fromInt
               |> Procedure.try ProcedureTagger TestResultTagger
@@ -144,7 +144,7 @@ multipleChannelTests =
             Procedure.fetch (Helpers.stringCommand "First")
               |> Procedure.andThen (\result -> 
                 Channel.subscribe (Helpers.stringSubscription result)
-                  |> Procedure.await
+                  |> Channel.await
               )
               |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
               |> Procedure.map (\result -> "Mapped: " ++ result)
@@ -154,7 +154,7 @@ multipleChannelTests =
             Procedure.fetch (Helpers.stringCommand "Second")
               |> Procedure.andThen (\result -> 
                 Channel.subscribe Helpers.intSubscription
-                  |> Procedure.await
+                  |> Channel.await
               )
               |> Procedure.andThen (\result ->
                 Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ String.fromInt result
@@ -201,14 +201,14 @@ mapTwoChannelsTests =
             ( Procedure.fetch (Helpers.stringCommand "First String Command")
                 |> Procedure.andThen (\result ->
                   Channel.subscribe (Helpers.stringSubscription result)
-                    |> Procedure.await
+                    |> Channel.await
                 )
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
             )
             ( Procedure.provide 787
                 |> Procedure.andThen (\_ -> 
                   Channel.subscribe Helpers.intSubscription
-                    |> Procedure.await
+                    |> Channel.await
                 )
                 |> Procedure.map (\result -> "Mapped Int: " ++ String.fromInt result)
             )

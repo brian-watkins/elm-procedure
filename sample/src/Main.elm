@@ -19,7 +19,7 @@ asyncPortProcedure : String -> Cmd Msg
 asyncPortProcedure word =
   Channel.send (\_ -> asyncPort word)
     |> Channel.receive portSubscription
-    |> Procedure.await
+    |> Channel.await
     |> Procedure.run ProcMsg ReceivedPortMessage
 
 
@@ -27,7 +27,7 @@ syncPortProcedure : String -> Cmd Msg
 syncPortProcedure word =
   Channel.send (\_ -> syncPort word)
     |> Channel.receive portSubscription
-    |> Procedure.await
+    |> Channel.await
     |> Procedure.run ProcMsg ReceivedPortMessage
 
 
@@ -37,7 +37,7 @@ keyPressProcedure =
     Browser.Events.onKeyPress <| Decode.map tagger keyDecoder
   )
     |> Channel.filter (\_ keyPress -> keyPress == "Z" || keyPress == "X" || keyPress == "Y")
-    |> Procedure.open
+    |> Channel.open
     |> Procedure.map (\key -> key ++ "!!!")
     |> Procedure.run ProcMsg PressedKey
 
