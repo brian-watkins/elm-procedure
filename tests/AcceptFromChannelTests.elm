@@ -1,4 +1,4 @@
-module OpenChannelTests exposing (..)
+module AcceptFromChannelTests exposing (..)
 
 import Expect
 import Test exposing (..)
@@ -10,15 +10,15 @@ import Procedure
 import Procedure.Channel as Channel
 
 
-awaitChannelTests : Test
-awaitChannelTests =
-  describe "when a procedure waits for a channel message"
+acceptOneFromChannelTests : Test
+acceptOneFromChannelTests =
+  describe "when a procedure accepts one message from a channel"
   [ test "it processes only the first message" <|
     \() ->
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
-          Channel.subscribe Helpers.intSubscription
-            |> Channel.await
+          Channel.join Helpers.intSubscription
+            |> Channel.acceptOne
             |> Procedure.map String.fromInt
             |> Procedure.run ProcedureTagger TestStringAccumulator
         )
@@ -31,15 +31,15 @@ awaitChannelTests =
         |> Helpers.expectValues [ "14" ]
   ]
 
-openChannelTests : Test
-openChannelTests =
-  describe "when a channel is open"
+acceptAllTests : Test
+acceptAllTests =
+  describe "when acceptUntil is used with a channel"
   [ test "it continually processes incoming messages" <|
     \() ->
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
-          Channel.subscribe Helpers.intSubscription
-            |> Channel.open
+          Channel.join Helpers.intSubscription
+            |> Channel.acceptUntil (\_ -> False)
             |> Procedure.map String.fromInt
             |> Procedure.run ProcedureTagger TestStringAccumulator
         )
@@ -55,9 +55,9 @@ openChannelTests =
       \() ->
         Helpers.procedureCommandTestState
         |> Command.send (\_ ->
-          Channel.subscribe Helpers.intSubscription
+          Channel.join Helpers.intSubscription
             |> Channel.filter (\_ num -> modBy 2 num == 0)
-            |> Channel.open
+            |> Channel.acceptUntil (\_ -> False)
             |> Procedure.map String.fromInt
             |> Procedure.run ProcedureTagger TestStringAccumulator
         )
@@ -79,13 +79,13 @@ openChannelAndAwaitTests =
     \() ->
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
-          Channel.subscribe Helpers.intSubscription
-            |> Channel.open
+          Channel.join Helpers.intSubscription
+            |> Channel.acceptUntil (\_ -> False)
             |> Procedure.map String.fromInt
             |> Procedure.andThen (\result ->
               Helpers.stringSubscription result
-                |> Channel.subscribe
-                |> Channel.await
+                |> Channel.join
+                |> Channel.acceptOne
             )
             |> Procedure.map (\r -> "After awaiting: " ++ r)
             |> Procedure.run ProcedureTagger TestStringAccumulator
@@ -111,4 +111,25 @@ openChannelAndAwaitTests =
           , "After awaiting: 8 then two"
           , "After awaiting: 14 then one"
           ]
+  ]
+
+acceptUntilTests : Test
+acceptUntilTests =
+  describe "when messages are accepted until some condition is satisfied"
+  [ test "it processes incoming messages until the condition is satisfied" <|
+    \() ->
+      Helpers.procedureCommandTestState
+        |> Command.send (\_ ->
+          Channel.join Helpers.intSubscription
+            |> Channel.acceptUntil (\data -> data == 8)
+            |> Procedure.map String.fromInt
+            |> Procedure.run ProcedureTagger TestStringAccumulator
+        )
+        |> Subscription.with (\_ -> Helpers.testSubscriptionsWithExtraSubs)
+        |> Subscription.send "int-subscription" 14
+        |> Subscription.with (\_ -> Helpers.testSubscriptionsWithExtraSubs)
+        |> Subscription.send "int-subscription" 8
+        |> Subscription.with (\_ -> Helpers.testSubscriptionsWithExtraSubs)
+        |> Subscription.send "int-subscription" 27
+        |> Helpers.expectValues [ "8", "14" ]
   ]

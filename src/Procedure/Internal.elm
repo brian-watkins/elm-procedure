@@ -25,7 +25,7 @@ type Step e a msg
     (ProcedureId -> (Msg msg -> msg) -> (Result e a -> msg) -> Cmd msg)
 
 type alias Channel a msg =
-  { requestGenerator : ProcedureId -> Cmd msg
-  , receiver : (a -> msg) -> Sub msg
-  , predicate : ProcedureId -> a -> Bool
+  { initialRequest : ProcedureId -> Cmd msg
+  , messageHandler : (a -> msg) -> Sub msg
+  , shouldProcessMessage : ProcedureId -> a -> Bool
   }

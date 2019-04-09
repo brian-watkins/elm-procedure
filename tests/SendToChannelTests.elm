@@ -14,14 +14,14 @@ import Procedure.Channel as Channel
 
 sendAndReceiveChannelTests : Test
 sendAndReceiveChannelTests =
-  describe "when send is used with receive to initialize a channel" <|
+  describe "when open is used with connect to initialize a channel" <|
   let
       procedureState =
         Helpers.procedureCommandTestState
           |> Command.send (\_ -> 
-              Channel.send (\_ -> Helpers.stringPortCommand "Fun!")
-                |> Channel.receive (Helpers.stringSubscription "Triggered by port")
-                |> Channel.await
+              Channel.open (\_ -> Helpers.stringPortCommand "Fun!")
+                |> Channel.connect (Helpers.stringSubscription "Triggered by port")
+                |> Channel.acceptOne
                 |> Procedure.map (\result -> "Mapped: " ++ result)
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| result ++ "!!!")
                 |> Procedure.run ProcedureTagger TestStringTagger
@@ -41,15 +41,15 @@ sendAndReceiveChannelTests =
     \() ->
       Helpers.procedureCommandTestState
         |> Command.send (\_ ->
-            Channel.send (\procedureId -> Helpers.stringPortCommand <| String.fromInt procedureId)
-              |> Channel.receive (Helpers.stringSubscription "Triggered by port")
-              |> Channel.await
+            Channel.open (\procedureId -> Helpers.stringPortCommand <| String.fromInt procedureId)
+              |> Channel.connect (Helpers.stringSubscription "Triggered by port")
+              |> Channel.acceptOne
               |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Command.send (\_ ->
-            Channel.send (\procedureId -> Helpers.stringPortCommand <| String.fromInt procedureId)
-              |> Channel.receive (Helpers.stringSubscription "Triggered by port")
-              |> Channel.await
+            Channel.open (\procedureId -> Helpers.stringPortCommand <| String.fromInt procedureId)
+              |> Channel.connect (Helpers.stringSubscription "Triggered by port")
+              |> Channel.acceptOne
               |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Subscription.with (\_ -> Helpers.testSubscriptions)

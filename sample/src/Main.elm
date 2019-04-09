@@ -17,27 +17,27 @@ port portSubscription : (String -> msg) -> Sub msg
 
 asyncPortProcedure : String -> Cmd Msg
 asyncPortProcedure word =
-  Channel.send (\_ -> asyncPort word)
-    |> Channel.receive portSubscription
-    |> Channel.await
+  Channel.open (\_ -> asyncPort word)
+    |> Channel.connect portSubscription
+    |> Channel.acceptOne
     |> Procedure.run ProcMsg ReceivedPortMessage
 
 
 syncPortProcedure : String -> Cmd Msg
 syncPortProcedure word =
-  Channel.send (\_ -> syncPort word)
-    |> Channel.receive portSubscription
-    |> Channel.await
+  Channel.open (\_ -> syncPort word)
+    |> Channel.connect portSubscription
+    |> Channel.acceptOne
     |> Procedure.run ProcMsg ReceivedPortMessage
 
 
 keyPressProcedure : Cmd Msg
 keyPressProcedure =
-  Channel.subscribe (\tagger ->
+  Channel.join (\tagger ->
     Browser.Events.onKeyPress <| Decode.map tagger keyDecoder
   )
     |> Channel.filter (\_ keyPress -> keyPress == "Z" || keyPress == "X" || keyPress == "Y")
-    |> Channel.open
+    |> Channel.acceptUntil (\_ -> False)
     |> Procedure.map (\key -> key ++ "!!!")
     |> Procedure.run ProcMsg PressedKey
 

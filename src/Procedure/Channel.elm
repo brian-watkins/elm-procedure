@@ -2,33 +2,33 @@ module Procedure.Channel exposing
   ( ProcedureId
   , Channel
   , ChannelRequest
-  , send
-  , subscribe
-  , receive
-  , filter
   , open
-  , await
+  , join
+  , connect
+  , filter
+  , acceptOne
+  , acceptUntil
   )
 
 {-| A channel represents a method for receiving messages from the outside world.
 
 You can open a channel by sending a command (usually via a port) or simply by providing
-a subscription. Once open, you can filter messages received. See `await` and `open` for
+a subscription. Once open, you can filter messages received. See `acceptOne` and `acceptUntil` for
 functions that allow you to incorporate a channel into a procedure. 
 
 @docs Channel
 
-# Initialize a Channel with a subscription
-@docs subscribe
+# Define a Channel
+@docs join
 
-# Initialize a Channel with a command
-@docs ProcedureId, ChannelRequest, send, receive
+# Open a Channel and Connect
+@docs ProcedureId, ChannelRequest, open, connect
 
 # Work with a Channel
 @docs filter
 
 # Use a Channel in a Procedure
-@docs await, open
+@docs acceptOne, acceptUntil
 
 -}
 
@@ -51,38 +51,38 @@ type Channel a msg
   = Channel (Procedure.Internal.Channel a msg)
 
 
-{-| Represents a request to receive messages over a channel.
+{-| Represents a request to open a channel.
 -}
 type ChannelRequest msg
   = ChannelRequest (ProcedureId -> Cmd msg)
 
 
-{-| Open a channel by sending a command message.
+{-| Open a channel by sending a command.
 -}
-send : (ProcedureId -> Cmd msg) -> ChannelRequest msg
-send =
+open : (ProcedureId -> Cmd msg) -> ChannelRequest msg
+open =
   ChannelRequest
 
 
-{-| Register a subscription to receive messages after a command has been sent across the channel.
+{-| Provide a subscription to receive messages after a command has been sent to open the channel.
 -}
-receive : ((a -> msg) -> Sub msg) -> ChannelRequest msg -> Channel a msg
-receive generator (ChannelRequest requestGenerator) =
+connect : ((a -> msg) -> Sub msg) -> ChannelRequest msg -> Channel a msg
+connect generator (ChannelRequest requestGenerator) =
   Channel
-    { requestGenerator = requestGenerator
-    , receiver = generator
-    , predicate = defaultPredicate
+    { initialRequest = requestGenerator
+    , messageHandler = generator
+    , shouldProcessMessage = defaultPredicate
     }
 
 
-{-| Initiate an exchange across a channel by registering a subscription to receive messages.
+{-| Define a channel by providing a subscription to receive messages.
 -}
-subscribe : ((a -> msg) -> Sub msg) -> Channel a msg
-subscribe generator =
+join : ((a -> msg) -> Sub msg) -> Channel a msg
+join generator =
   Channel
-    { requestGenerator = emptyRequest
-    , receiver = generator
-    , predicate = defaultPredicate
+    { initialRequest = emptyRequest
+    , messageHandler = generator
+    , shouldProcessMessage = defaultPredicate
     }
 
 
@@ -93,67 +93,65 @@ Note: Calling filter multiple times on a channel simply replaces any existing fi
 filter : (ProcedureId -> a -> Bool) -> Channel a msg -> Channel a msg
 filter predicate (Channel channel) =
   Channel 
-    { channel | predicate = predicate }
+    { channel | shouldProcessMessage = predicate }
 
 
-{-| Generate a step that opens a `Channel` and waits for the first message to be processed.
+{-| Generate a step that accepts the first message to be processed from a channel. After
+that message is processed, the channel is closed. 
 
 For example, if you wanted to send a request via a port command and wait for a response on some port subscription,
 you could do the following:
 
-    Channel.send myPortCommand
-      |> Channel.receive myPortSubscription
-      |> Channel.await
+    Channel.open myPortCommand
+      |> Channel.connect myPortSubscription
+      |> Channel.acceptOne
       |> Procedure.run ProcedureTagger DataTagger
 
 -}
-await : Channel a msg -> Step e a msg
-await =
-  consumeChannel <| 
-    \procId channelId msgTagger resultTagger data ->
-      Ok data
-        |> resultTagger
-        |> msgTagger << Unsubscribe procId channelId
+acceptOne : Channel a msg -> Step e a msg
+acceptOne =
+  acceptUntil <|
+    \_ -> True
 
 
-{-| Generate a step that opens a `Channel` and processes messages as they are received.
+{-| Generate a step that processes messages on a channel as they are received until the 
+predicate is satisfied. When the predicate is satisfied, the last message received on the channel
+will be processed and the channel will be closed. 
 
-For example, if you wanted to filter and map messages received over a subscription before passing these
-to your update function, you could do the following:
+For example, suppose `mySubscription` provides a stream of numbers. If you wanted to filter and map 
+these messages before passing these to your update function, you could do the following:
 
-    Channel.subscribe mySubscription
+    Channel.join mySubscription
       |> Channel.filter (\_ data -> modBy 2 data == 0)
-      |> Channel.open
+      |> Channel.acceptUntil (\data -> data == 20)
       |> Procedure.map String.fromInt
       |> Procedure.run ProcedureTagger StringTagger
 
 Then, as numbers come in through `mySubscription`, a `StringTagger` message will be sent
-that tags the number as a string.
+that tags the number as a string. When this procedure completes, the last message sent will
+be `StringTagger "20"`. 
 
 -}
-open : Channel a msg -> Step e a msg
-open =
-  consumeChannel <|
-    \_ _ _ resultTagger data ->
-      resultTagger <| Ok data
-
-
-consumeChannel : (ProcedureId -> ChannelId -> (Msg msg -> msg) -> (Result e a -> msg) -> a -> msg) 
-  -> Channel a msg 
-  -> Step e a msg
-consumeChannel dataTagger (Channel channel) =
+acceptUntil : (a -> Bool) -> Channel a msg -> Step e a msg
+acceptUntil isLastMessage (Channel channel) =
   Step <|
     \procId msgTagger resultTagger ->
       let
         requestCommandMsg =
-          channel.requestGenerator procId
+          channel.initialRequest procId
             |> msgTagger << Execute procId
 
         subGenerator channelId =
-          channel.receiver <|
+          channel.messageHandler <|
             \aData ->
-              if channel.predicate procId aData then
-                dataTagger procId channelId msgTagger resultTagger aData
+              if channel.shouldProcessMessage procId aData then
+                if isLastMessage aData then
+                  Ok aData
+                    |> resultTagger
+                    |> msgTagger << Unsubscribe procId channelId
+                else
+                  Ok aData
+                    |> resultTagger
               else
                 msgTagger Continue
       in

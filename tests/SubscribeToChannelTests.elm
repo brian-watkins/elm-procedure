@@ -19,8 +19,8 @@ subscribeTests =
         |> Command.send (\_ ->
             Procedure.fetch (Helpers.stringCommand "First")
               |> Procedure.andThen (\result -> 
-                Channel.subscribe (Helpers.stringSubscription result)
-                  |> Channel.await
+                Channel.join (Helpers.stringSubscription result)
+                  |> Channel.acceptOne
               )
               |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
               |> Procedure.map (\result -> "Mapped: " ++ result)
@@ -55,9 +55,9 @@ subscribeAndFilterTests =
           |> Command.send (\_ ->
               Procedure.provide "sub-key"
                 |> Procedure.andThen (\result ->
-                  Channel.subscribe Helpers.keySubscription
+                  Channel.join Helpers.keySubscription
                     |> Channel.filter (\_ desc -> desc.key == result)
-                    |> Channel.await
+                    |> Channel.acceptOne
                 )
                 |> Procedure.map .value
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
@@ -75,9 +75,9 @@ subscribeAndFilterTests =
           |> Command.send (\_ ->
               Procedure.provide "sub-key"
                 |> Procedure.andThen (\result ->
-                  Channel.subscribe Helpers.keySubscription
+                  Channel.join Helpers.keySubscription
                     |> Channel.filter (\_ desc -> desc.key == result)
-                    |> Channel.await
+                    |> Channel.acceptOne
                 )
                 |> Procedure.map .value
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
@@ -102,9 +102,9 @@ filterOnProcedureIdTests =
         |> Command.send (\_ ->
             Procedure.provide "something"
               |> Procedure.andThen (\result ->
-                Channel.subscribe Helpers.keySubscription
+                Channel.join Helpers.keySubscription
                   |> Channel.filter (\procedureId desc -> desc.key == String.fromInt procedureId)
-                  |> Channel.await
+                  |> Channel.acceptOne
               )
               |> Procedure.map .value
               |> Procedure.try ProcedureTagger TestResultTagger
@@ -112,9 +112,9 @@ filterOnProcedureIdTests =
         |> Command.send (\_ ->
             Procedure.provide "something else"
               |> Procedure.andThen (\result ->
-                  Channel.subscribe Helpers.intSubscription
+                  Channel.join Helpers.intSubscription
                     |> Channel.filter (\procedureId number -> number == procedureId)
-                    |> Channel.await
+                    |> Channel.acceptOne
               )
               |> Procedure.map String.fromInt
               |> Procedure.try ProcedureTagger TestResultTagger
@@ -143,8 +143,8 @@ multipleChannelTests =
         |> Command.send (\_ ->
             Procedure.fetch (Helpers.stringCommand "First")
               |> Procedure.andThen (\result -> 
-                Channel.subscribe (Helpers.stringSubscription result)
-                  |> Channel.await
+                Channel.join (Helpers.stringSubscription result)
+                  |> Channel.acceptOne
               )
               |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
               |> Procedure.map (\result -> "Mapped: " ++ result)
@@ -153,8 +153,8 @@ multipleChannelTests =
         |> Command.send (\_ ->
             Procedure.fetch (Helpers.stringCommand "Second")
               |> Procedure.andThen (\result -> 
-                Channel.subscribe Helpers.intSubscription
-                  |> Channel.await
+                Channel.join Helpers.intSubscription
+                  |> Channel.acceptOne
               )
               |> Procedure.andThen (\result ->
                 Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ String.fromInt result
@@ -200,15 +200,15 @@ mapTwoChannelsTests =
           Procedure.map2 (\a b -> a ++ " AND " ++ b)
             ( Procedure.fetch (Helpers.stringCommand "First String Command")
                 |> Procedure.andThen (\result ->
-                  Channel.subscribe (Helpers.stringSubscription result)
-                    |> Channel.await
+                  Channel.join (Helpers.stringSubscription result)
+                    |> Channel.acceptOne
                 )
                 |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| "After sub: " ++ result)
             )
             ( Procedure.provide 787
                 |> Procedure.andThen (\_ -> 
-                  Channel.subscribe Helpers.intSubscription
-                    |> Channel.await
+                  Channel.join Helpers.intSubscription
+                    |> Channel.acceptOne
                 )
                 |> Procedure.map (\result -> "Mapped Int: " ++ String.fromInt result)
             )
