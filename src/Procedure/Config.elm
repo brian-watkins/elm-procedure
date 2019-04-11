@@ -99,9 +99,11 @@ updateProcedures msg registry =
       )
     Execute procedureId cmd ->
       ( registry, cmd )
-    Subscribe procedureId nextMessage subGenerator ->
+    Subscribe procedureId messageGenerator subGenerator ->
       ( updateProcedureModel (addChannel subGenerator) procedureId registry
-      , sendMessageAfter 0 nextMessage
+      , nextChannelIdForProcedure procedureId registry
+          |> messageGenerator
+          |> sendMessageAfter 0
       )
     Unsubscribe procedureId channelId nextMessage ->
       ( updateProcedureModel (deleteChannel channelId) procedureId registry
@@ -134,6 +136,14 @@ updateProcedureModel mapper procedureId registry =
         |> mapper
   in
     { registry | procedures = Dict.insert procedureId procModel registry.procedures }
+
+
+nextChannelIdForProcedure : ProcedureId -> Registry msg -> ChannelId
+nextChannelIdForProcedure procedureId registry =
+  registry.procedures
+    |> Dict.get procedureId
+    |> Maybe.withDefault defaultProcedureModel
+    |> .nextId
 
 
 sendMessageAfter : Float -> msg -> Cmd msg

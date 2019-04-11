@@ -103,7 +103,7 @@ filterOnProcedureIdTests =
             Procedure.provide "something"
               |> Procedure.andThen (\result ->
                 Channel.join Helpers.keySubscription
-                  |> Channel.filter (\procedureId desc -> desc.key == String.fromInt procedureId)
+                  |> Channel.filter (\channelId desc -> desc.key == channelId)
                   |> Channel.acceptOne
               )
               |> Procedure.map .value
@@ -113,7 +113,7 @@ filterOnProcedureIdTests =
             Procedure.provide "something else"
               |> Procedure.andThen (\result ->
                   Channel.join Helpers.intSubscription
-                    |> Channel.filter (\procedureId number -> number == procedureId)
+                    |> Channel.filter (\channelId number -> String.contains (String.fromInt number) channelId)
                     |> Channel.acceptOne
               )
               |> Procedure.map String.fromInt
@@ -124,7 +124,7 @@ filterOnProcedureIdTests =
   [ test "it provides the first procedure with the procedureId" <|
     \() ->
       testState
-        |> Subscription.send "key-subscription" { key = "0", value = "awesome value" }
+        |> Subscription.send "key-subscription" { key = "0-0", value = "awesome value" }
         |> Helpers.expectValue "awesome value"
   , test "it provides the second procedure with the procedureId" <|
     \() ->

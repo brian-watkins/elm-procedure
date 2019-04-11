@@ -1,6 +1,6 @@
 module Procedure.Channel exposing
-  ( ProcedureId
-  , Channel
+  ( Channel
+  , ChannelKey
   , ChannelRequest
   , open
   , join
@@ -22,7 +22,7 @@ functions that allow you to incorporate a channel into a procedure.
 @docs join
 
 # Open a Channel and Connect
-@docs ProcedureId, ChannelRequest, open, connect
+@docs ChannelKey, ChannelRequest, open, connect
 
 # Work with a Channel
 @docs filter
@@ -33,33 +33,37 @@ functions that allow you to incorporate a channel into a procedure.
 -}
 
 import Task
-import Procedure.Internal exposing (ProcedureId, ChannelId, Channel, Step(..), Msg(..))
+import Procedure.Internal exposing (ProcedureId, ChannelId, Step(..), Msg(..))
 
 
-{-| Represents the unique identifier assigned to each procedure.
+{-| Represents the unique key assigned to each procedure.
 
-This is most useful when opening a channel by sending a command, where you might pass the identifier
+This is most useful when opening a channel by sending a command, where you might pass the key
 through a port and then use it to filter incoming messages to a subscription.
 -}
-type alias ProcedureId =
-  Procedure.Internal.ProcedureId
+type alias ChannelKey =
+  String
 
 
 {-| Represents a method for receiving messages from the outside world. 
 -}
 type Channel a msg
-  = Channel (Procedure.Internal.Channel a msg)
+  = Channel
+    { initialRequest : ChannelKey -> Cmd msg
+    , messageHandler : (a -> msg) -> Sub msg
+    , shouldProcessMessage : ChannelKey -> a -> Bool
+    }
 
 
 {-| Represents a request to open a channel.
 -}
 type ChannelRequest msg
-  = ChannelRequest (ProcedureId -> Cmd msg)
+  = ChannelRequest (ChannelKey -> Cmd msg)
 
 
 {-| Open a channel by sending a command.
 -}
-open : (ProcedureId -> Cmd msg) -> ChannelRequest msg
+open : (ChannelKey -> Cmd msg) -> ChannelRequest msg
 open =
   ChannelRequest
 
@@ -90,7 +94,7 @@ join generator =
 
 Note: Calling filter multiple times on a channel simply replaces any existing filter on that channel.
 -}
-filter : (ProcedureId -> a -> Bool) -> Channel a msg -> Channel a msg
+filter : (ChannelKey -> a -> Bool) -> Channel a msg -> Channel a msg
 filter predicate (Channel channel) =
   Channel 
     { channel | shouldProcessMessage = predicate }
@@ -133,19 +137,19 @@ be `StringTagger "20"`.
 
 -}
 acceptUntil : (a -> Bool) -> Channel a msg -> Step e a msg
-acceptUntil isLastMessage (Channel channel) =
+acceptUntil shouldUnsubscribe (Channel channel) =
   Step <|
     \procId msgTagger resultTagger ->
       let
-        requestCommandMsg =
-          channel.initialRequest procId
+        requestCommandMsg channelId =
+          channel.initialRequest (channelKey procId channelId)
             |> msgTagger << Execute procId
 
         subGenerator channelId =
           channel.messageHandler <|
             \aData ->
-              if channel.shouldProcessMessage procId aData then
-                if isLastMessage aData then
+              if channel.shouldProcessMessage (channelKey procId channelId) aData then
+                if shouldUnsubscribe aData then
                   Ok aData
                     |> resultTagger
                     |> msgTagger << Unsubscribe procId channelId
@@ -159,11 +163,16 @@ acceptUntil isLastMessage (Channel channel) =
           |> Task.perform (msgTagger << Subscribe procId requestCommandMsg)
 
 
-emptyRequest : ProcedureId -> Cmd msg
+channelKey : ProcedureId -> ChannelId -> ChannelKey
+channelKey procId channelId =
+  String.fromInt procId ++ "-" ++ String.fromInt channelId
+
+
+emptyRequest : ChannelKey -> Cmd msg
 emptyRequest _ =
   Cmd.none
 
 
-defaultPredicate : ProcedureId -> a -> Bool
+defaultPredicate : ChannelKey -> a -> Bool
 defaultPredicate _ _ =
   True
