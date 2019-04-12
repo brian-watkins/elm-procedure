@@ -35,7 +35,7 @@ You can also define a channel by providing a command and a subscription to recei
 -}
 
 import Task
-import Procedure.Internal exposing (ProcedureId, ChannelId, Step(..), Msg(..))
+import Procedure.Internal exposing (ProcedureId, ChannelId, Procedure(..), Msg(..))
 
 
 {-| Represents the unique key assigned to each procedure.
@@ -147,7 +147,7 @@ filter predicate (Channel channel) =
     { channel | shouldProcessMessage = predicate }
 
 
-{-| Generate a step that accepts the first message to be processed from a channel. After
+{-| Generate a procedure that accepts the first message to be processed from a channel. After
 that message is processed, the channel is closed. 
 
 For example, if you wanted to send a request via a port command and wait for a response on some port subscription,
@@ -159,13 +159,13 @@ you could do the following:
       |> Procedure.run ProcedureTagger DataTagger
 
 -}
-acceptOne : Channel a msg -> Step e a msg
+acceptOne : Channel a msg -> Procedure e a msg
 acceptOne =
   acceptUntil <|
     \_ -> True
 
 
-{-| Generate a step that processes messages on a channel as they are received until the 
+{-| Generate a procedure that processes messages on a channel as they are received until the 
 predicate is satisfied. When the predicate is satisfied, the last message received on the channel
 will be processed and the channel will be closed. 
 
@@ -183,9 +183,9 @@ that tags the number as a string. When this procedure completes, the last messag
 be `StringTagger "20"`. 
 
 -}
-acceptUntil : (a -> Bool) -> Channel a msg -> Step e a msg
+acceptUntil : (a -> Bool) -> Channel a msg -> Procedure e a msg
 acceptUntil shouldUnsubscribe (Channel channel) =
-  Step <|
+  Procedure <|
     \procId msgTagger resultTagger ->
       let
         requestCommandMsg channelId =

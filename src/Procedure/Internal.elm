@@ -2,7 +2,7 @@ module Procedure.Internal exposing
   ( ProcedureId
   , ChannelId
   , Msg(..)
-  , Step(..)
+  , Procedure(..)
   )
 
 type alias ProcedureId =
@@ -19,6 +19,6 @@ type Msg msg
   | Continue
 
 
-type Step e a msg
-  = Step
+type Procedure e a msg
+  = Procedure
     (ProcedureId -> (Msg msg -> msg) -> (Result e a -> msg) -> Cmd msg)
