@@ -95,11 +95,8 @@ This will result in `StringTagger "Hello"`.
 
 -}
 provide : a -> Procedure e a msg
-provide value =
-  fetch <|
-    \tagger ->
-      Task.succeed value
-        |> Task.perform tagger
+provide =
+  fromTask << Task.succeed
 
 
 {-| Generate a procedure that runs a task.
@@ -148,11 +145,8 @@ then the result would be `Err "File is too long!"`.
 
 -}
 break : e -> Procedure e a msg
-break value =
-  Procedure <| 
-    \_ _ tagger ->
-      Task.succeed value
-        |> Task.perform (tagger << Err)
+break =
+  fromTask << Task.fail
 
 
 {-| Generate a new procedure when some previous procedure results in an error, usually
