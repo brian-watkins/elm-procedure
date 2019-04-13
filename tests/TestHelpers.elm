@@ -1,10 +1,12 @@
 port module TestHelpers exposing
   ( Msg(..)
-  , procedureCommandTestState
+  , runProcedure
+  , andRunProcedure
+  , tryProcedure
+  , andTryProcedure
+  , expect
   , expectValue
-  , expectValues
-  , expectError
-  , expectUnit
+  , expectResult
   , stringCommand
   , stringPortCommand
   , stringSubscription
@@ -23,11 +25,37 @@ import Elmer.Subscription as Subscription
 import Html exposing (Html)
 import Task
 import Process
-import Procedure
+import Procedure exposing (Procedure)
 import Procedure.Config
 
 
-procedureCommandTestState : TestState Model Msg
+runProcedure : (() -> Procedure Never a (Msg e a)) -> TestState (Model e a) (Msg e a)
+runProcedure procThunk =
+  procedureCommandTestState
+    |> andRunProcedure procThunk
+
+andRunProcedure : (() -> Procedure Never a (Msg e a)) -> TestState (Model e a) (Msg e a) -> TestState (Model e a) (Msg e a)
+andRunProcedure procThunk testState =
+  testState
+    |> Command.send (\_ ->
+      procThunk ()
+        |> Procedure.run ProcedureTagger TestValueTagger
+    )
+
+tryProcedure : (() -> Procedure e a (Msg e a)) -> TestState (Model e a) (Msg e a)
+tryProcedure procThunk =
+  procedureCommandTestState
+    |> andTryProcedure procThunk
+
+andTryProcedure : (() -> Procedure e a (Msg e a)) -> TestState (Model e a) (Msg e a) -> TestState (Model e a) (Msg e a)
+andTryProcedure procThunk testState =
+  testState
+    |> Command.send (\_ ->
+      procThunk ()
+        |> Procedure.try ProcedureTagger TestResultTagger
+    )
+
+procedureCommandTestState : TestState (Model e a) (Msg e a)
 procedureCommandTestState =
   Elmer.given testModel emptyView testUpdate
     |> Spy.use
@@ -48,35 +76,32 @@ processSpy =
       Task.succeed ()
     )
 
-expectValue : String -> TestState Model Msg -> Expect.Expectation
-expectValue expected testState =
+expectValue : a -> TestState (Model e a) (Msg e a) -> Expect.Expectation
+expectValue expectedValue =
+  expect (\values ->
+    case List.head values of
+      Just value ->
+        Expect.equal expectedValue value
+      Nothing ->
+        Expect.fail "The procedure produced no value!"
+  )
+
+expect : (List a -> Expect.Expectation) -> TestState (Model e a) (Msg e a) -> Expect.Expectation
+expect handler testState =
   testState
     |> Elmer.expectModel (\model ->
-        Expect.equal model.message expected
+        handler model.values
     )
 
-
-expectValues : List String -> TestState Model Msg -> Expect.Expectation
-expectValues expected testState =
+expectResult : Result e a -> TestState (Model e a) (Msg e a) -> Expect.Expectation
+expectResult expectedResult testState =
   testState
     |> Elmer.expectModel (\model ->
-      Expect.equal expected model.messages
-    )
-
-
-expectError : String -> TestState Model Msg -> Expect.Expectation
-expectError expected testState =
-  testState
-    |> Elmer.expectModel (\model ->
-        Expect.equal model.error expected
-    )
-
-
-expectUnit : TestState Model Msg -> Expect.Expectation
-expectUnit testState =
-  testState
-    |> Elmer.expectModel (\model ->
-      Expect.true "Expected to receive a unit" model.didReceiveUnit
+      case List.head model.results of
+        Just result ->
+          Expect.equal expectedResult result
+        Nothing ->
+          Expect.fail "The procedure produced no result!"
     )
 
 
@@ -88,7 +113,7 @@ stringCommandSpy =
     )
 
 
-stringCommand : String -> (String -> Msg) -> Cmd Msg
+stringCommand : String -> (String -> Msg e a) -> Cmd (Msg e a)
 stringCommand _ _ =
   Cmd.none
 
@@ -102,7 +127,7 @@ stringPortCommandSpy =
     |> andCallFake (\_ -> Command.dummy "string-port")
 
 
-stringSubscription : String -> (String -> Msg) -> Sub Msg
+stringSubscription : String -> (String -> Msg e a) -> Sub (Msg e a)
 stringSubscription _ _ =
   Sub.none
 
@@ -123,7 +148,7 @@ type alias SubDescription =
   }
 
 
-keySubscription : (SubDescription -> Msg) -> Sub Msg
+keySubscription : (SubDescription -> Msg e a) -> Sub (Msg e a)
 keySubscription _ =
   Sub.none
 
@@ -142,12 +167,12 @@ intCommandSpy =
     )
 
 
-intCommand : Int -> (Int -> Msg) -> Cmd Msg
+intCommand : Int -> (Int -> Msg e a) -> Cmd (Msg e a)
 intCommand _ _ =
   Cmd.none
 
 
-intSubscription : (Int -> Msg) -> Sub Msg
+intSubscription : (Int -> Msg e a) -> Sub (Msg e a)
 intSubscription _ =
   Sub.none
 
@@ -158,64 +183,50 @@ intSubscriptionSpy =
     |> andCallFake (Subscription.fake "int-subscription")
 
 
-type Msg
-  = ProcedureTagger (Procedure.Config.Msg Msg)
-  | TestStringTagger String
-  | TestStringAccumulator String
-  | TestResultTagger (Result String String)
-  | TestUnitTagger ()
+type Msg e a
+  = ProcedureTagger (Procedure.Config.Msg (Msg e a))
+  | TestValueTagger a
+  | TestResultTagger (Result e a)
   | UnusedIntSubTagger Int
   | UnusedStringSubTagger String
 
 
-type alias Model =
-  { procedureModel : Procedure.Config.Model Msg
-  , message : String
-  , messages : List String
-  , didReceiveUnit : Bool
-  , error : String
+type alias Model e a =
+  { procedureModel : Procedure.Config.Model (Msg e a)
+  , values : List a
+  , results : List (Result e a)
   }
 
 
 testModel =
   { procedureModel = Procedure.Config.init
-  , message = ""
-  , messages = []
-  , didReceiveUnit = False
-  , error = ""
+  , values = []
+  , results = []
   }
 
 
-testUpdate : Msg -> Model -> (Model, Cmd Msg)
+testUpdate : Msg e a -> Model e a -> (Model e a, Cmd (Msg e a))
 testUpdate msg model =
   case msg of
     ProcedureTagger pMsg ->
       Procedure.Config.update pMsg model.procedureModel
         |> Tuple.mapFirst (\updatedModel -> { model | procedureModel = updatedModel })
-    TestStringTagger value ->
-      ( { model | message = value }, Cmd.none )
-    TestStringAccumulator value ->
-      ( { model | messages = value :: model.messages }, Cmd.none )
-    TestResultTagger value ->
-      case value of
-        Ok data ->
-          ( { model | message = data }, Cmd.none )
-        Err data ->
-          ( { model | error = data }, Cmd.none )
-    TestUnitTagger _ ->
-      ( { model | didReceiveUnit = True }, Cmd.none )
+    TestValueTagger value ->
+      ( { model | values = value :: model.values }, Cmd.none )
+    TestResultTagger result ->
+      ( { model | results = result :: model.results }, Cmd.none )
     UnusedIntSubTagger _ ->
       ( model, Cmd.none )
     UnusedStringSubTagger _ ->
       ( model, Cmd.none )
 
 
-testSubscriptions : Model -> Sub Msg
+testSubscriptions : Model e a -> Sub (Msg e a)
 testSubscriptions model =
   Procedure.Config.subscriptions model.procedureModel
 
 
-testSubscriptionsWithExtraSubs : Model -> Sub Msg
+testSubscriptionsWithExtraSubs : Model e a -> Sub (Msg e a)
 testSubscriptionsWithExtraSubs model =
   Sub.batch
   [ Procedure.Config.subscriptions model.procedureModel
@@ -224,6 +235,6 @@ testSubscriptionsWithExtraSubs model =
   ]
 
 
-emptyView : Model -> Html Msg
+emptyView : Model e a -> Html (Msg e a)
 emptyView _ =
   Html.text ""

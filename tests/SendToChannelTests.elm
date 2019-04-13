@@ -17,15 +17,13 @@ sendAndReceiveChannelTests =
   describe "when open is used with connect to initialize a channel" <|
   let
       procedureState =
-        Helpers.procedureCommandTestState
-          |> Command.send (\_ -> 
-              Channel.open (\_ -> Helpers.stringPortCommand "Fun!")
-                |> Channel.connect (Helpers.stringSubscription "Triggered by port")
-                |> Channel.acceptOne
-                |> Procedure.map (\result -> "Mapped: " ++ result)
-                |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| result ++ "!!!")
-                |> Procedure.run ProcedureTagger TestStringTagger
-            )
+        Helpers.runProcedure (\_ ->
+          Channel.open (\_ -> Helpers.stringPortCommand "Fun!")
+            |> Channel.connect (Helpers.stringSubscription "Triggered by port")
+            |> Channel.acceptOne
+            |> Procedure.map (\result -> "Mapped: " ++ result)
+            |> Procedure.andThen (\result -> Procedure.fetch <| Helpers.stringCommand <| result ++ "!!!")
+        )
   in
   [ test "it executes the command" <|
     \() -> 
@@ -39,18 +37,15 @@ sendAndReceiveChannelTests =
         |> Helpers.expectValue "Mapped: Triggered by port then received awesome value from subscription!!!"
   , test "it provides the channelId" <|
     \() ->
-      Helpers.procedureCommandTestState
-        |> Command.send (\_ ->
+      Helpers.runProcedure (\_ ->
+        Channel.open (\channelId -> Helpers.stringPortCommand channelId)
+          |> Channel.connect (Helpers.stringSubscription "Triggered by port")
+          |> Channel.acceptOne
+      )
+        |> Helpers.andRunProcedure (\_ ->
             Channel.open (\channelId -> Helpers.stringPortCommand channelId)
               |> Channel.connect (Helpers.stringSubscription "Triggered by port")
               |> Channel.acceptOne
-              |> Procedure.run ProcedureTagger TestStringTagger
-          )
-        |> Command.send (\_ ->
-            Channel.open (\channelId -> Helpers.stringPortCommand channelId)
-              |> Channel.connect (Helpers.stringSubscription "Triggered by port")
-              |> Channel.acceptOne
-              |> Procedure.run ProcedureTagger TestStringTagger
           )
         |> Subscription.with (\_ -> Helpers.testSubscriptions)
         |> Subscription.send "string-subscription" "received awesome value from subscription"
@@ -68,20 +63,18 @@ multipleChannelTests =
   describe "when there are multiple channels in a procedure" <|
   let
     testState =
-      Helpers.procedureCommandTestState
-        |> Command.send (\_ ->
+      Helpers.runProcedure (\_ ->
+        Channel.open (\channelId -> Helpers.stringPortCommand channelId)
+          |> Channel.connect (Helpers.stringSubscription "Triggered by port")
+          |> Channel.filter (\key data -> key == "0-0")
+          |> Channel.acceptOne
+          |> Procedure.andThen (\_ ->
             Channel.open (\channelId -> Helpers.stringPortCommand channelId)
               |> Channel.connect (Helpers.stringSubscription "Triggered by port")
-              |> Channel.filter (\key data -> key == "0-0")
+              |> Channel.filter(\key data -> key == "0-1")
               |> Channel.acceptOne
-              |> Procedure.andThen (\_ ->
-                Channel.open (\channelId -> Helpers.stringPortCommand channelId)
-                  |> Channel.connect (Helpers.stringSubscription "Triggered by port")
-                  |> Channel.filter(\key data -> key == "0-1")
-                  |> Channel.acceptOne
-              )
-              |> Procedure.run ProcedureTagger TestStringTagger
           )
+      )
         |> Subscription.with (\_ -> Helpers.testSubscriptions)
         |> Subscription.send "string-subscription" "received awesome value from subscription"
         |> Subscription.with (\_ -> Helpers.testSubscriptions)

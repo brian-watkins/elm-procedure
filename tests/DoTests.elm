@@ -2,7 +2,6 @@ module DoTests exposing (..)
 
 import Expect
 import Test exposing (..)
-import Elmer
 import Elmer.Command as Command
 import TestHelpers as Helpers exposing (Msg(..))
 import Procedure
@@ -13,11 +12,9 @@ doTests =
   describe "when do is used to send a command without a callback" <|
   let
     testState =
-      Helpers.procedureCommandTestState
-        |> Command.send (\_ ->
-            Procedure.do (Helpers.stringPortCommand "Hello")
-              |> Procedure.run ProcedureTagger TestUnitTagger
-        )
+      Helpers.runProcedure (\_ ->
+        Procedure.do <| Helpers.stringPortCommand "Hello"
+      )
   in
   [ test "it sends the command" <|
     \() ->
@@ -26,5 +23,5 @@ doTests =
   , test "it continues by passing a unit to the next step" <|
     \() ->
       testState
-        |> Helpers.expectUnit
+        |> Helpers.expectValue ()
   ]
