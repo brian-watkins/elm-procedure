@@ -51,9 +51,9 @@ type alias ChannelKey =
 -}
 type Channel a msg
   = Channel
-    { initialRequest : ChannelKey -> Cmd msg
-    , messageHandler : (a -> msg) -> Sub msg
-    , shouldProcessMessage : ChannelKey -> a -> Bool
+    { request : ChannelKey -> Cmd msg
+    , subscription : (a -> msg) -> Sub msg
+    , shouldAccept : ChannelKey -> a -> Bool
     }
 
 
@@ -90,9 +90,9 @@ you use `open` to send a command that opens a channel.
 connect : ((a -> msg) -> Sub msg) -> ChannelRequest msg -> Channel a msg
 connect generator (ChannelRequest requestGenerator) =
   Channel
-    { initialRequest = requestGenerator
-    , messageHandler = generator
-    , shouldProcessMessage = defaultPredicate
+    { request = requestGenerator
+    , subscription = generator
+    , shouldAccept = defaultPredicate
     }
 
 
@@ -117,9 +117,9 @@ ones to your update function. You could accomplish that like so:
 join : ((a -> msg) -> Sub msg) -> Channel a msg
 join generator =
   Channel
-    { initialRequest = emptyRequest
-    , messageHandler = generator
-    , shouldProcessMessage = defaultPredicate
+    { request = defaultRequest
+    , subscription = generator
+    , shouldAccept = defaultPredicate
     }
 
 
@@ -144,7 +144,7 @@ Note: Calling filter multiple times on a channel simply replaces any existing fi
 filter : (ChannelKey -> a -> Bool) -> Channel a msg -> Channel a msg
 filter predicate (Channel channel) =
   Channel 
-    { channel | shouldProcessMessage = predicate }
+    { channel | shouldAccept = predicate }
 
 
 {-| Generate a procedure that accepts the first message to be processed from a channel. After
@@ -161,8 +161,7 @@ you could do the following:
 -}
 acceptOne : Channel a msg -> Procedure e a msg
 acceptOne =
-  acceptUntil <|
-    \_ -> True
+  acceptUntil <| always True
 
 
 {-| Generate a procedure that processes messages on a channel as they are received until the 
@@ -189,22 +188,25 @@ acceptUntil shouldUnsubscribe (Channel channel) =
     \procId msgTagger resultTagger ->
       let
         requestCommandMsg channelId =
-          channel.initialRequest (channelKey procId channelId)
+          channel.request (channelKey procId channelId)
             |> msgTagger << Execute procId
 
         subGenerator channelId =
-          channel.messageHandler <|
+          channel.subscription <|
             \aData ->
-              if channel.shouldProcessMessage (channelKey procId channelId) aData then
-                if shouldUnsubscribe aData then
-                  Ok aData
-                    |> resultTagger
-                    |> msgTagger << Unsubscribe procId channelId
-                else
-                  Ok aData
-                    |> resultTagger
+              if channel.shouldAccept (channelKey procId channelId) aData then
+                generateMsg channelId aData
               else
                 msgTagger Continue
+
+        generateMsg channelId aData =
+          if shouldUnsubscribe aData then
+            Ok aData
+              |> resultTagger
+              |> msgTagger << Unsubscribe procId channelId
+          else
+            Ok aData
+              |> resultTagger
       in
         Task.succeed subGenerator
           |> Task.perform (msgTagger << Subscribe procId requestCommandMsg)
@@ -215,8 +217,8 @@ channelKey procId channelId =
   String.fromInt procId ++ "-" ++ String.fromInt channelId
 
 
-emptyRequest : ChannelKey -> Cmd msg
-emptyRequest _ =
+defaultRequest : ChannelKey -> Cmd msg
+defaultRequest _ =
   Cmd.none
 
 
