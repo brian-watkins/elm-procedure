@@ -100,13 +100,15 @@ updateProcedures msg registry =
     Execute procedureId cmd ->
       ( registry, cmd )
     Subscribe procedureId messageGenerator subGenerator ->
-      ( updateProcedureModel (addChannel subGenerator) procedureId registry
+      ( addChannel subGenerator
+          |> updateProcedureModel procedureId registry
       , nextChannelIdForProcedure procedureId registry
           |> messageGenerator
           |> sendMessageAfter 0
       )
     Unsubscribe procedureId channelId nextMessage ->
-      ( updateProcedureModel (deleteChannel channelId) procedureId registry
+      ( deleteChannel channelId
+          |> updateProcedureModel procedureId registry
       , sendMessageAfter 0 nextMessage
       )
     Continue ->
@@ -126,8 +128,8 @@ deleteChannel channelId procModel =
   { procModel | channels = Dict.remove channelId procModel.channels }
 
 
-updateProcedureModel : (ProcedureModel msg -> ProcedureModel msg) -> ProcedureId -> Registry msg -> Registry msg
-updateProcedureModel mapper procedureId registry =
+updateProcedureModel : ProcedureId -> Registry msg -> (ProcedureModel msg -> ProcedureModel msg) -> Registry msg
+updateProcedureModel procedureId registry mapper =
   let
     procModel =
       registry.procedures
