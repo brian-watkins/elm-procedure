@@ -7,6 +7,7 @@ port module TestHelpers exposing
   , expect
   , expectValue
   , expectResult
+  , resultCommand
   , stringCommand
   , stringPortCommand
   , stringSubscription
@@ -65,6 +66,7 @@ procedureCommandTestState =
       , stringSubscriptionSpy
       , keySubscriptionSpy
       , stringPortCommandSpy
+      , resultCommandSpy
       , processSpy
       ]
 
@@ -104,6 +106,17 @@ expectResult expectedResult testState =
           Expect.fail "The procedure produced no result!"
     )
 
+
+resultCommandSpy : Spy
+resultCommandSpy =
+  Spy.observe (\_ -> resultCommand)
+    |> andCallFake (\result tagger ->
+      Command.fake <| tagger result
+    )
+
+resultCommand : Result String Int -> (Result String Int -> Msg String Int) -> Cmd (Msg String Int)
+resultCommand _ _ =
+  Cmd.none
 
 stringCommandSpy : Spy
 stringCommandSpy =

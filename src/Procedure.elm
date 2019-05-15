@@ -1,6 +1,6 @@
 module Procedure exposing
   ( Procedure
-  , do, fetch, provide, collect, fromTask, break
+  , do, fetch, fetchResult, provide, collect, fromTask, break
   , catch, andThen
   , map, map2, map3, mapError
   , try, run
@@ -14,7 +14,7 @@ module Procedure exposing
 @docs run, try
 
 # Basic Procedures
-@docs provide, fetch, collect, fromTask, break, do
+@docs provide, fetch, fetchResult, collect, fromTask, break, do
 
 # Build a Procedure
 @docs andThen, catch
@@ -56,6 +56,34 @@ fetch generator =
     \_ _ tagger ->
       generator <| tagger << Ok
 
+
+{-| Generate a procedure that gets the result produced by executing some `Cmd`.
+
+For example, if you wanted to make an Http request and then map the response,
+you could do the following:
+
+    Procedure.fetchResult (\tagger ->
+      Http.get
+        { url = "http://fun.com/fun.html"
+        , expect = Http.expectString tagger
+        }
+      )
+      |> Procedure.map (\words ->
+        "Fun stuff: " ++ words
+      )
+      |> Procedure.catch (\error ->
+        Procedure.provide "No Response"
+      )
+      |> Procedure.run ProcedureTagger StringTagger
+
+If the Http request fails, then the result will be: `No response`.
+
+-}
+fetchResult : ((Result e a -> msg) -> Cmd msg) -> Procedure e a msg
+fetchResult generator =
+  Procedure <|
+    \_ _ tagger ->
+      generator tagger
 
 {-| Generate a procedure that executes a `Cmd` that does not produce any value directly.
 
