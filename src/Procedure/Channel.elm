@@ -6,6 +6,7 @@ module Procedure.Channel exposing
   , join
   , connect
   , filter
+  , accept
   , acceptOne
   , acceptUntil
   )
@@ -30,7 +31,7 @@ You can also define a channel by providing a command and a subscription to recei
 @docs filter
 
 # Use a Channel in a Procedure
-@docs acceptOne, acceptUntil
+@docs accept, acceptOne, acceptUntil
 
 -}
 
@@ -164,6 +165,26 @@ acceptOne =
   acceptUntil <| always True
 
 
+{-| Generate a procedure that processes messages on a channel indefinitely.
+
+For example, suppose `mySubscription` provides a stream of numbers. If you wanted to filter and map
+these messages before passing these to your update function, you could do the following:
+
+    Channel.join mySubscription
+      |> Channel.filter (\_ data -> modBy 2 data == 0)
+      |> Channel.accept
+      |> Procedure.map String.fromInt
+      |> Procedure.run ProcedureTagger StringTagger
+
+Then, as numbers come in through `mySubscription`, a `StringTagger` message will be sent
+that tags the even numbers as a string.
+
+-}
+accept : Channel a msg -> Procedure e a msg
+accept =
+  acceptUntil <| always False
+
+
 {-| Generate a procedure that processes messages on a channel as they are received until the 
 predicate is satisfied. When the predicate is satisfied, the last message received on the channel
 will be processed and the channel will be closed. 
@@ -178,8 +199,9 @@ these messages before passing these to your update function, you could do the fo
       |> Procedure.run ProcedureTagger StringTagger
 
 Then, as numbers come in through `mySubscription`, a `StringTagger` message will be sent
-that tags the number as a string. When this procedure completes, the last message sent will
-be `StringTagger "20"`. 
+that tags the number as a string. Once the number `20` is received from the subscription, the
+channel will close and process no more messages. The last message sent by this procedure will
+be `StringTagger "20"`.
 
 -}
 acceptUntil : (a -> Bool) -> Channel a msg -> Procedure e a msg

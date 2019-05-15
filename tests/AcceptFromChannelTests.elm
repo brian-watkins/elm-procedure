@@ -29,12 +29,12 @@ acceptOneFromChannelTests =
 
 acceptAllTests : Test
 acceptAllTests =
-  describe "when acceptUntil is used with a channel"
-  [ test "it continually processes incoming messages" <|
+  describe "when accept is used with a channel"
+  [ test "it processes incoming messages indefinitely" <|
     \() ->
       Helpers.runProcedure (\_ ->
         Channel.join Helpers.intSubscription
-          |> Channel.acceptUntil (\_ -> False)
+          |> Channel.accept
           |> Procedure.map String.fromInt
       )
         |> Subscription.with (\_ -> Helpers.testSubscriptionsWithExtraSubs)
@@ -50,7 +50,7 @@ acceptAllTests =
         Helpers.runProcedure (\_ ->
           Channel.join Helpers.intSubscription
             |> Channel.filter (\_ num -> modBy 2 num == 0)
-            |> Channel.acceptUntil (\_ -> False)
+            |> Channel.accept
             |> Procedure.map String.fromInt
         )
           |> Subscription.with (\_ -> Helpers.testSubscriptionsWithExtraSubs)
