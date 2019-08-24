@@ -116,7 +116,7 @@ do command =
 
 {-| Generate a procedure that simply provides a value.
 
-    Procedure.send "Hello!"
+    Procedure.provide "Hello!"
       |> Procedure.run ProcedureTagger StringTagger
 
 This will result in `StringTagger "Hello"`.
