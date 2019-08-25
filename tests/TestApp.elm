@@ -9,11 +9,11 @@ import Http
 import Json.Decode as Json
 import Json.Encode as Encode
 import Procedure
-import Procedure.Config
+import Procedure.Program
 
 
 type Msg
-  = ProcedureTagger (Procedure.Config.Msg Msg)
+  = ProcedureTagger (Procedure.Program.Msg Msg)
   | DoThings
   | ReceivedResponse (Result Http.Error ServerMessage)
 
@@ -24,14 +24,14 @@ type alias ServerMessage =
 
 
 type alias Model =
-  { procedureModel: Procedure.Config.Model Msg
+  { procedureModel: Procedure.Program.Model Msg
   , serverMessage: String
   }
 
 
 defaultModel : Model
 defaultModel =
-  { procedureModel = Procedure.Config.init
+  { procedureModel = Procedure.Program.init
   , serverMessage = "Nothing"
   }
 
@@ -50,7 +50,7 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     ProcedureTagger pMsg ->
-      Procedure.Config.update pMsg model.procedureModel
+      Procedure.Program.update pMsg model.procedureModel
         |> Tuple.mapFirst (\updatedModel -> { model | procedureModel = updatedModel })
     DoThings ->
       ( model

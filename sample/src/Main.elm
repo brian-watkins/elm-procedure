@@ -7,7 +7,7 @@ import Html.Events as Events
 import Html.Attributes as Attr
 import Json.Decode as Decode exposing (Decoder)
 import Procedure
-import Procedure.Config
+import Procedure.Program
 import Procedure.Channel as Channel
 
 port syncPort : String -> Cmd msg
@@ -51,7 +51,7 @@ keyDecoder =
 
 
 type Msg
-  = ProcMsg (Procedure.Config.Msg Msg)
+  = ProcMsg (Procedure.Program.Msg Msg)
   | ReceivedPortMessage String
   | PressedKey String
   | HandleInput String
@@ -62,7 +62,7 @@ type alias Model =
   { portMessage: String
   , didPressSpecialKey: Maybe String
   , portInput: String
-  , procModel: (Procedure.Config.Model Msg)
+  , procModel: (Procedure.Program.Model Msg)
   }
 
 defaultModel : Model
@@ -70,7 +70,7 @@ defaultModel =
   { portMessage = ""
   , didPressSpecialKey = Nothing
   , portInput = ""
-  , procModel = Procedure.Config.init
+  , procModel = Procedure.Program.init
   }
 
 init : () -> (Model, Cmd Msg)
@@ -107,7 +107,7 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     ProcMsg pMsg ->
-      Procedure.Config.update pMsg model.procModel
+      Procedure.Program.update pMsg model.procModel
         |> Tuple.mapFirst (\updated -> { model | procModel = updated })
     ReceivedPortMessage message ->
       ( { model | portMessage = message }, Cmd.none )
@@ -122,7 +122,7 @@ update msg model =
     
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Procedure.Config.subscriptions model.procModel
+  Procedure.Program.subscriptions model.procModel
 
 ---
 

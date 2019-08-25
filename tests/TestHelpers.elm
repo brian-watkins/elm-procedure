@@ -27,7 +27,7 @@ import Html exposing (Html)
 import Task
 import Process
 import Procedure exposing (Procedure)
-import Procedure.Config
+import Procedure.Program
 
 
 runProcedure : (() -> Procedure Never a (Msg e a)) -> TestState (Model e a) (Msg e a)
@@ -197,7 +197,7 @@ intSubscriptionSpy =
 
 
 type Msg e a
-  = ProcedureTagger (Procedure.Config.Msg (Msg e a))
+  = ProcedureTagger (Procedure.Program.Msg (Msg e a))
   | TestValueTagger a
   | TestResultTagger (Result e a)
   | UnusedIntSubTagger Int
@@ -205,14 +205,14 @@ type Msg e a
 
 
 type alias Model e a =
-  { procedureModel : Procedure.Config.Model (Msg e a)
+  { procedureModel : Procedure.Program.Model (Msg e a)
   , values : List a
   , results : List (Result e a)
   }
 
 
 testModel =
-  { procedureModel = Procedure.Config.init
+  { procedureModel = Procedure.Program.init
   , values = []
   , results = []
   }
@@ -222,7 +222,7 @@ testUpdate : Msg e a -> Model e a -> (Model e a, Cmd (Msg e a))
 testUpdate msg model =
   case msg of
     ProcedureTagger pMsg ->
-      Procedure.Config.update pMsg model.procedureModel
+      Procedure.Program.update pMsg model.procedureModel
         |> Tuple.mapFirst (\updatedModel -> { model | procedureModel = updatedModel })
     TestValueTagger value ->
       ( { model | values = value :: model.values }, Cmd.none )
@@ -236,13 +236,13 @@ testUpdate msg model =
 
 testSubscriptions : Model e a -> Sub (Msg e a)
 testSubscriptions model =
-  Procedure.Config.subscriptions model.procedureModel
+  Procedure.Program.subscriptions model.procedureModel
 
 
 testSubscriptionsWithExtraSubs : Model e a -> Sub (Msg e a)
 testSubscriptionsWithExtraSubs model =
   Sub.batch
-  [ Procedure.Config.subscriptions model.procedureModel
+  [ Procedure.Program.subscriptions model.procedureModel
   , intSubscription UnusedIntSubTagger
   , stringSubscription "unused" UnusedStringSubTagger
   ]
