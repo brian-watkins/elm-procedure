@@ -25,13 +25,13 @@ module Procedure exposing
 -}
 
 import Task exposing (Task)
-import Procedure.Internal exposing (Procedure(..), Msg(..))
+import Procedure.Internal as Internal exposing (Msg(..))
 
 
 {-| Represents some sequence of commands, subscriptions, or tasks that ultimately results in some value. 
 -}
 type alias Procedure e a msg =
-  Procedure.Internal.Procedure e a msg
+  Internal.Procedure e a msg
 
 
 {-| Generate a procedure that gets the value produced by executing some `Cmd`.
@@ -52,7 +52,7 @@ that do not produce a value, use `do`.
 -}
 fetch : ((a -> msg) -> Cmd msg) -> Procedure e a msg
 fetch generator =
-  Procedure <| 
+  Internal.Procedure <|
     \_ _ tagger ->
       generator <| tagger << Ok
 
@@ -81,7 +81,7 @@ If the Http request fails, then the result will be: `No response`.
 -}
 fetchResult : ((Result e a -> msg) -> Cmd msg) -> Procedure e a msg
 fetchResult generator =
-  Procedure <|
+  Internal.Procedure <|
     \_ _ tagger ->
       generator tagger
 
@@ -99,7 +99,7 @@ a `Channel`.
 -}
 do : Cmd msg -> Procedure Never () msg
 do command =
-  Procedure <| 
+  Internal.Procedure <|
     \procId msgTagger resultTagger ->
       Task.succeed ()
         |> Task.perform (\_ ->
@@ -145,7 +145,7 @@ if `Procedure.break` had been used.
 -}
 fromTask : Task e a -> Procedure e a msg
 fromTask task =
-  Procedure <|
+  Internal.Procedure <|
     \procId msgTagger resultTagger ->
       Task.attempt resultTagger task
 
@@ -275,7 +275,7 @@ addToList procedure collector =
 
 emptyProcedure : Procedure e a msg
 emptyProcedure =
-  Procedure <|
+  Internal.Procedure <|
     \_ _ _ -> Cmd.none
 
 
@@ -350,13 +350,13 @@ mapError mapper procedure =
 
 
 next : Procedure e a msg -> (Result e a -> Procedure f b msg) -> Procedure f b msg
-next (Procedure procedure) resultMapper =
-  Procedure <| 
+next (Internal.Procedure procedure) resultMapper =
+  Internal.Procedure <|
     \procId msgTagger tagger ->
       procedure procId msgTagger <|
         \aResult ->
           let
-            (Procedure nextProcedure) =
+            (Internal.Procedure nextProcedure) =
               resultMapper aResult
           in
             nextProcedure procId msgTagger tagger
@@ -364,14 +364,20 @@ next (Procedure procedure) resultMapper =
 
 
 {-| Execute a procedure that may fail. 
+
+Note: The first argument tags a `Procedure.Program.Msg` as a `Msg` in your application.
+The second argument tags the result of the Procedure as a `Msg` in your application.
 -}
 try : (Msg msg -> msg) -> (Result e a -> msg) -> Procedure e a msg -> Cmd msg
-try msgTagger tagger (Procedure procedure) =
+try msgTagger tagger (Internal.Procedure procedure) =
   Task.succeed (\procId -> procedure procId msgTagger tagger)
     |> Task.perform (msgTagger << Initiate)
 
 
 {-| Execute a procedure that cannot fail.
+
+Note: The first argument tags a `Procedure.Program.Msg` as a `Msg` in your application.
+The second argument tags the value produced by the Procedure as a `Msg` in your application.
 -}
 run : (Msg msg -> msg) -> (a -> msg) -> Procedure Never a msg -> Cmd msg
 run msgTagger tagger =

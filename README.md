@@ -1,6 +1,6 @@
 # Elm-Procedure
 
-This package allows you to chain together commands, subscriptions, and tasks to describe a procedure. 
+This package provides an abstraction that allows you to orchestrate commands, subscriptions, and tasks.
 
 Create a `Procedure` and then produce a `Cmd` that can be executed via `Procedure.run` or `Procedure.try`.
 
