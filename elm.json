@@ -1,13 +1,13 @@
 {
     "type": "package",
     "name": "brian-watkins/elm-procedure",
-    "summary": "Chain commands to form a procedure",
+    "summary": "Orchestrate commands, subscriptions, and tasks",
     "license": "MIT",
     "version": "1.0.0",
     "exposed-modules": [
         "Procedure",
         "Procedure.Channel",
-        "Procedure.Config"
+        "Procedure.Program"
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
     "dependencies": {

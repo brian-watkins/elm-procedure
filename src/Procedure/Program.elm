@@ -1,4 +1,4 @@
-module Procedure.Config exposing
+module Procedure.Program exposing
   ( Msg
   , Model
   , init
@@ -6,7 +6,7 @@ module Procedure.Config exposing
   , subscriptions
   )
 
-{-| Configure your application to use procedures.
+{-| Use these functions to configure your program to run procedures.
 
 @docs Msg, Model, init, update, subscriptions
 
