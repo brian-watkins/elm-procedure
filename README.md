@@ -2,7 +2,7 @@
 
 This package provides an abstraction that allows you to orchestrate commands, subscriptions, and tasks.
 
-Create a `Procedure` and then produce a `Cmd` that can be executed via `Procedure.run` or `Procedure.try`.
+Create a `Procedure` and then use `Procedure.run` or `Procedure.try` to produce a `Cmd` that can be executed.
 
 ## Examples
 
@@ -59,4 +59,35 @@ Channel.open (\key -> myPortCommand key)
   |> Channel.filter (\key data -> data.key == key)
   |> Channel.acceptOne
   |> Procedure.run ProcedureTagger DataTagger
+```
+
+## Usage
+
+Follow these steps so that your program can process `Cmd` values produced with `Procedure.run` or `Procedure.try`.
+
+1. Add a custom `Msg` type that will tag `Procedure.Program.Msg` values:
+```
+type Msg
+  = ProcedureMsg (Procedure.Program.Msg Msg)
+```
+2. Add the `Procedure.Program.Model` to your program's model:
+```
+type alias Model =
+  { procModel: Procedure.Program.Model Msg
+  }
+```
+3. Add a case to your `update` function to handle `Procedure.Program.Msg` values:
+```
+update : Msg -> Model -> (Model, Cmd Msg)
+update msg model =
+  case msg of
+    ProcedureMsg procMsg ->
+      Procedure.Program.update procMsg model.procModel
+        |> Tuple.mapFirst (\updated -> { model | procModel = updated })
+```
+4. Initialize the `Procedure.Program.Model` when you initialize your program:
+```
+init : MyFlags -> ( Model, Cmd Msg )
+init flags =
+  ( { procModel = Procedure.Program.init }, Cmd.none )
 ```

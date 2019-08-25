@@ -24,7 +24,7 @@ The type variable refers to the `Msg` type used by your application.
 You should provide a message type that wraps these values like so:
 
     type AppMsg
-      = ProcMsg (Procedure.Config.Msg AppMsg)
+      = ProcMsg (Procedure.Program.Msg AppMsg)
 
 -}
 type alias Msg msg
@@ -36,7 +36,7 @@ type alias Msg msg
 You should store this in your application's model like so:
 
     type alias AppModel =
-      { procModel : Procedure.Config.Model AppMsg
+      { procModel : Procedure.Program.Model AppMsg
       }
 
 -}
@@ -80,7 +80,7 @@ You should add this to your application's update function like so:
     update appMsg appModel =
       case appMsg of
         ProcedureTagger procMsg ->
-          Procedure.Config.update procMsg appModel.procModel
+          Procedure.Program.update procMsg appModel.procModel
             |> Tuple.mapFirst (\updated -> { appModel | procModel = updated })
 
 -}
@@ -160,7 +160,7 @@ Add this to your application's subscriptions function like so:
 
     appSubscriptions : AppModel -> Sub AppMsg
     appSubscriptions appModel =
-      Procedure.Config.subscriptions appModel.procModel
+      Procedure.Program.subscriptions appModel.procModel
 
 Note: You only need to use this function if you are using procedures 
 with channels, i.e. if you have subscriptions in your procedures.
