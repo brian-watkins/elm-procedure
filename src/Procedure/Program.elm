@@ -104,12 +104,12 @@ updateProcedures msg registry =
           |> updateProcedureModel procedureId registry
       , nextChannelIdForProcedure procedureId registry
           |> messageGenerator
-          |> sendMessageAfter 0
+          |> sendMessage
       )
     Unsubscribe procedureId channelId nextMessage ->
       ( deleteChannel channelId
           |> updateProcedureModel procedureId registry
-      , sendMessageAfter 0 nextMessage
+      , sendMessage nextMessage
       )
     Continue ->
       ( registry, Cmd.none )
@@ -148,9 +148,9 @@ nextChannelIdForProcedure procedureId registry =
     |> .nextId
 
 
-sendMessageAfter : Float -> msg -> Cmd msg
-sendMessageAfter timeout msg =
-  Process.sleep timeout
+sendMessage : msg -> Cmd msg
+sendMessage msg =
+  Task.succeed ()
     |> Task.perform (always msg)
 
 
