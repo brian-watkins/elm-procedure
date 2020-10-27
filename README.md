@@ -61,33 +61,71 @@ Channel.open (\key -> myPortCommand key)
   |> Procedure.run ProcedureTagger DataTagger
 ```
 
+#### Send the value of a task through a port
+
+The following procedure gets the current time and sends it through a port.
+In this case, the `update` function will receive no message, since none is generated.
+
+```
+port sendOutMillis: Int -> Cmd msg
+
+Procedure.fromTask Time.now
+  |> Procedure.map Time.posixToMillis
+  |> Procedure.andThen (\millis ->
+    Procedure.endWith <| sendOutMillis millis
+  )
+  |> Procedure.run ProcedureTagger never
+```
+
+
 ## Usage
 
 Follow these steps so that your program can process `Cmd` values produced with `Procedure.run` or `Procedure.try`.
 
 1. Add a custom `Msg` type that will tag `Procedure.Program.Msg` values:
-```
-type Msg
-  = ProcedureMsg (Procedure.Program.Msg Msg)
-```
+
+  ```
+  type Msg
+     = ProcedureMsg (Procedure.Program.Msg Msg)
+  ```
+
 2. Add the `Procedure.Program.Model` to your program's model:
-```
-type alias Model =
-  { procModel: Procedure.Program.Model Msg
-  }
-```
+
+  ```
+  type alias Model =
+     { procModel: Procedure.Program.Model Msg
+     }
+  ```
+
 3. Add a case to your `update` function to handle `Procedure.Program.Msg` values:
-```
-update : Msg -> Model -> (Model, Cmd Msg)
-update msg model =
-  case msg of
-    ProcedureMsg procMsg ->
-      Procedure.Program.update procMsg model.procModel
-        |> Tuple.mapFirst (\updated -> { model | procModel = updated })
-```
+
+  ```
+  update : Msg -> Model -> (Model, Cmd Msg)
+  update msg model =
+     case msg of
+       ProcedureMsg procMsg ->
+         Procedure.Program.update procMsg model.procModel
+           |> Tuple.mapFirst (\updated ->
+             { model | procModel = updated }
+           )
+  ```
+
 4. Initialize the `Procedure.Program.Model` when you initialize your program:
-```
-init : MyFlags -> ( Model, Cmd Msg )
-init flags =
-  ( { procModel = Procedure.Program.init }, Cmd.none )
-```
+
+  ```
+  init : MyFlags -> ( Model, Cmd Msg )
+  init flags =
+     ( { procModel = Procedure.Program.init }
+     , Cmd.none
+     )
+  ```
+
+5. Add a subscription:
+
+  ```
+  subscriptions : Model -> Sub Msg
+  subscriptions model =
+     Procedure.Program.subscriptions model.procModel
+  ```
+
+Note that Step 5 is necessary only if you are running procedures that involve subscriptions.
