@@ -1,6 +1,6 @@
 module Procedure exposing
   ( Procedure
-  , do, fetch, fetchResult, provide, collect, fromTask, break
+  , do, endWith, fetch, fetchResult, provide, collect, fromTask, break
   , catch, andThen
   , map, map2, map3, mapError
   , try, run
@@ -14,7 +14,7 @@ module Procedure exposing
 @docs run, try
 
 # Basic Procedures
-@docs provide, fetch, fetchResult, collect, fromTask, break, do
+@docs provide, fetch, fetchResult, collect, fromTask, break, do, endWith
 
 # Build a Procedure
 @docs andThen, catch
@@ -111,6 +111,33 @@ do command =
             Cmd.batch [ command, nextCommand ]
               |> Execute procId
               |> msgTagger
+        )
+
+{-| Generate a procedure that runs a command and states that no further value will be provided,
+effectively ending the procedure.
+
+Use this function when you need to end a procedure with a command that produces no message
+directly, such as a port command, and you don't want to add a `NoOp` case to your update function.
+
+For example, this procedure gets the current time and sends it out via a port (called `sendMillisOut` in this
+case), and never produces a message for the update function.
+
+    Procedure.fromTask Task.now
+      |> Procedure.map Time.posixToMillis
+      |> Procedure.andThen (\millis ->
+        Procedure.endWith <| sendMillisOut millis
+      )
+      |> Procedure.run ProcedureMsg never
+
+-}
+endWith : Cmd msg -> Procedure Never Never msg
+endWith command =
+  Internal.Procedure <|
+    \procId msgTagger _ ->
+      Task.succeed ()
+        |> Task.perform (\_ ->
+          Execute procId command
+            |> msgTagger
         )
 
 
@@ -296,7 +323,7 @@ map mapper =
   andThen (provide << mapper)
 
 
-{-| Generate a procedure that provides a new value based on the values of two other procedures
+{-| Generate a procedure that provides a new value based on the values of two other procedures.
 
     Procedure.map2
       (\a b -> a ++ " AND " ++ b)
@@ -304,7 +331,11 @@ map mapper =
       (Procedure.provide "Two")
       |> Procedure.run ProcedureTagger StringTagger
 
-Then the result would be `StringTagger "One AND Two"
+Then the result would be `StringTagger "One AND Two".
+
+Note: `map2` executes each procedure in order. The second procedure will be executed only
+if the first succeeds; if the first fails, then the whole procedure will fail. This follows
+the behavior of `Task.map2` in the core library.
 -}
 map2 : (a -> b -> c) -> Procedure e a msg -> Procedure e b msg -> Procedure e c msg
 map2 mapper procedureA procedureB =
@@ -317,6 +348,7 @@ map2 mapper procedureA procedureB =
 
 {-| Generate a procedure that provides a new value based on the values of three other procedures.
 
+Note: `map3` executes each procedure in order. See [map2](#map2) for more details.
 -}
 map3 : (a -> b -> c -> d) -> Procedure e a msg -> Procedure e b msg -> Procedure e c msg -> Procedure e d msg
 map3 mapper procedureA procedureB procedureC =
