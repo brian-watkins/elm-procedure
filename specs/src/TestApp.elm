@@ -76,16 +76,25 @@ fetchTime tagger =
 
 sendServerRequest : Posix -> (Result Http.Error ServerMessage -> Msg) -> Cmd Msg
 sendServerRequest time tagger =
-  Http.post "http://funserver.com/api/fun" (requestBody time) messageDecoder
-    |> Http.send tagger
+  Http.post
+    { url = "http://funserver.com/api/fun"
+    , body = requestBody time
+    , expect = Http.expectJson tagger messageDecoder
+    }
+  -- Http.post "http://funserver.com/api/fun" (requestBody time) messageDecoder
+    -- |> Http.send tagger
 
 
 sendAwesomeRequest : Result Http.Error ServerMessage -> (Result Http.Error ServerMessage -> Msg) -> Cmd Msg
 sendAwesomeRequest result tagger =
   case result of
     Ok message ->
-      Http.get ("http://awesomeserver.com/api/awesome?message=" ++ message.message) messageDecoder
-        |> Http.send tagger
+      Http.get
+        { url = "http://awesomeserver.com/api/awesome?message=" ++ message.message
+        , expect = Http.expectJson tagger messageDecoder
+        }
+      -- Http.get ("http://awesomeserver.com/api/awesome?message=" ++ message.message) messageDecoder
+        -- |> Http.send tagger
     Err _ ->
       Cmd.none
 
@@ -94,8 +103,13 @@ sendSweetRequest : Result Http.Error ServerMessage -> (Result Http.Error ServerM
 sendSweetRequest result tagger =
   case result of
     Ok message ->
-      Http.post ("http://sweetserver.com/api/sweet") (sweetRequestBody message.message) messageDecoder
-        |> Http.send tagger
+      Http.post
+        { url = "http://sweetserver.com/api/sweet"
+        , body = sweetRequestBody message.message
+        , expect = Http.expectJson tagger messageDecoder
+        }
+      -- Http.post ("http://sweetserver.com/api/sweet") (sweetRequestBody message.message) messageDecoder
+        -- |> Http.send tagger
     Err _ ->
       Cmd.none
 

@@ -9,6 +9,6 @@
   "author": "Brian Watkins",
   "license": "MIT",
   "devDependencies": {
-    "elm-live": "^3.4.0"
+    "elm-live": "^4.0.2"
   }
 }
