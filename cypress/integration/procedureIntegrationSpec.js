@@ -46,4 +46,26 @@ describe("Procedures", () => {
     cy.get("[data-port-message]")
       .should('contain', 'Thanks for the message: Hello synchronous!')
   })
+
+  it("runs multiple procedures that use the same ports in different ways", () => {
+    cy.visit("http://localhost:9732")
+
+    cy.get("[data-port-input]")
+      .type("Hello")
+
+    cy.get("[data-word-save]")
+      .click()
+
+    cy.get("[data-port-input]")
+      .type("27")
+
+    cy.get("[data-number-save]")
+      .click()
+
+    cy.get("[data-save-messages]")
+      .should('contain', 'You saved a word: Hello')
+
+    cy.get("[data-save-messages]")
+      .should('contain', 'You saved a number: 27')
+  })
 })

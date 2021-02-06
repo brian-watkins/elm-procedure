@@ -22,6 +22,15 @@
   app.ports.syncPort.subscribe(function(word) {
     app.ports.portSubscription.send(`Thanks for the message: ${word}!`)
   })
+
+  let storageRequests = 0;
+
+  app.ports.saveToLocalStorage.subscribe(function(request) {
+    setTimeout(() => {
+      app.ports.localStorageSaveResult.send({ id: request.id, data: request.data, success: true })
+    }, 500 * (3 - storageRequests))
+    storageRequests++
+  })
   </script>
 </body>
 </html>

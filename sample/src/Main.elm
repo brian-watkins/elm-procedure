@@ -14,6 +14,19 @@ port syncPort : String -> Cmd msg
 port asyncPort : String -> Cmd msg
 port portSubscription : (String -> msg) -> Sub msg
 
+type alias SaveRequest =
+  { id: String
+  , data: String
+  }
+
+type alias SaveResult =
+  { id: String
+  , data: String
+  , success: Bool
+  }
+
+port localStorageSaveResult : (SaveResult -> msg) -> Sub msg
+port saveToLocalStorage : SaveRequest -> Cmd msg
 
 asyncPortProcedure : String -> Cmd Msg
 asyncPortProcedure word =
@@ -47,6 +60,26 @@ keyDecoder =
   Decode.field "key" Decode.string
 
 
+saveWordProcedure : String -> Cmd Msg
+saveWordProcedure word =
+  Channel.open (\channelKey -> saveToLocalStorage { id = channelKey, data = word } )
+    |> Channel.connect localStorageSaveResult
+    |> Channel.filter (\channelKey result -> result.id == channelKey)
+    |> Channel.acceptOne
+    |> Procedure.map .data
+    |> Procedure.run ProcMsg SavedWord
+
+
+saveNumberProcedure : Int -> Cmd Msg
+saveNumberProcedure number =
+  Channel.open (\channelKey -> saveToLocalStorage { id = channelKey, data = String.fromInt number } )
+    |> Channel.connect localStorageSaveResult
+    |> Channel.filter (\channelKey result -> result.id == channelKey)
+    |> Channel.acceptOne
+    |> Procedure.map (\saveResult -> String.toInt saveResult.data |> Maybe.withDefault -1)
+    |> Procedure.run ProcMsg SavedNumber
+
+
 ---
 
 
@@ -57,12 +90,17 @@ type Msg
   | HandleInput String
   | TriggerAsyncPort
   | TriggerSyncPort
+  | TriggerSaveWord
+  | TriggerSaveNumber
+  | SavedWord String
+  | SavedNumber Int
 
 type alias Model =
   { portMessage: String
   , didPressSpecialKey: Maybe String
   , portInput: String
   , procModel: (Procedure.Program.Model Msg)
+  , saveResults: List String
   }
 
 defaultModel : Model
@@ -71,6 +109,7 @@ defaultModel =
   , didPressSpecialKey = Nothing
   , portInput = ""
   , procModel = Procedure.Program.init
+  , saveResults = []
   }
 
 init : () -> (Model, Cmd Msg)
@@ -82,12 +121,17 @@ view model =
   Html.div []
   [ Html.h1 [ dataAttribute "data-on-type" ] [ pressedKeyMessage model ]
   , Html.div []
-    [ Html.input [ dataAttribute "data-port-input", Events.onInput HandleInput ] []
+    [ Html.input [ dataAttribute "data-port-input", Attr.value model.portInput, Events.onInput HandleInput ] []
     , Html.button [ dataAttribute "data-port-async-submit", Events.onClick TriggerAsyncPort ] [ Html.text "Click Me for Async" ]
     , Html.button [ dataAttribute "data-port-sync-submit", Events.onClick TriggerSyncPort ] [ Html.text "Click Me for Synchronous" ]
+    , Html.button [ dataAttribute "data-word-save", Events.onClick TriggerSaveWord ] [ Html.text "Save a Word" ]
+    , Html.button [ dataAttribute "data-number-save", Events.onClick TriggerSaveNumber ] [ Html.text "Save a Number" ]
     ]
   , Html.div [ dataAttribute "data-port-message" ]
     [ Html.text model.portMessage 
+    ]
+  , Html.pre [ dataAttribute "data-save-messages" ]
+    [ Html.text <| String.join "\n" model.saveResults
     ]
   ]
 
@@ -119,6 +163,18 @@ update msg model =
       ( model, asyncPortProcedure model.portInput )
     TriggerSyncPort ->
       ( model, syncPortProcedure model.portInput )
+    TriggerSaveWord ->
+      ( { model | portInput = "" }, saveWordProcedure model.portInput )
+    TriggerSaveNumber ->
+      ( { model | portInput = "" }
+      , String.toInt model.portInput
+          |> Maybe.withDefault -1
+          |> saveNumberProcedure
+      )
+    SavedWord word ->
+      ( { model | saveResults = List.append model.saveResults [ "You saved a word: " ++ word ] }, Cmd.none )
+    SavedNumber number ->
+      ( { model | saveResults = List.append model.saveResults [ "You saved a number: " ++ String.fromInt number ] }, Cmd.none )
     
 subscriptions : Model -> Sub Msg
 subscriptions model =
