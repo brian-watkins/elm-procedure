@@ -8,19 +8,19 @@ import Html.Attributes as Attr
 import Json.Decode as Decode exposing (Decoder)
 import Procedure
 import Procedure.Program
-import Procedure.Channel as Channel
+import Procedure.Channel as Channel exposing (ChannelKey)
 
 port syncPort : String -> Cmd msg
 port asyncPort : String -> Cmd msg
 port portSubscription : (String -> msg) -> Sub msg
 
 type alias SaveRequest =
-  { id: String
+  { id: ChannelKey
   , data: String
   }
 
 type alias SaveResult =
-  { id: String
+  { id: ChannelKey
   , data: String
   , success: Bool
   }
