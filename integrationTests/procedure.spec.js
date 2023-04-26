@@ -39,37 +39,14 @@ test("runs a procedure that makes a request to a port and processes the response
 test("runs multiple procedures that use the same ports in different ways", async ({ page }) => {
   await page.goto("http://localhost:9732")
 
-  // await page.type("[data-port-input]", "Hello")
   await page.locator("[data-port-input]").fill("Hello")
 
-  // cy.get("[data-port-input]")
-    // .type("Hello")
   await page.click("[data-word-save]")
-
-  // await page.waitForTimeout(100)
-
-  // cy.get("[data-word-save]")
-    // .click()
 
   await page.locator("[data-port-input]").fill("27")
 
-  // await page.type("[data-port-input]", "27")
-
-  // cy.get("[data-port-input]")
-    // .type("27")
-
   await page.click("[data-number-save]")
-  // cy.get("[data-number-save]")
-    // .click()
-
-  // await page.pause()
 
   await expect(page.locator("[data-save-messages]")).toContainText("You saved a word: Hello")
   await expect(page.locator("[data-save-messages]")).toContainText("You saved a number: 27")
-
-  // cy.get("[data-save-messages]")
-  //   .should('contain', 'You saved a word: Hello')
-
-  // cy.get("[data-save-messages]")
-  //   .should('contain', 'You saved a number: 27')
 })
