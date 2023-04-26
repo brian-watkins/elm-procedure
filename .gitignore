@@ -1,5 +1,7 @@
 node_modules
 elm-stuff
 docs.json
-cypress/screenshots
 sample/elm.js
+/test-results/
+/playwright-report/
+/playwright/.cache/
