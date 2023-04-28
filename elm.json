@@ -3,7 +3,7 @@
     "name": "brian-watkins/elm-procedure",
     "summary": "Orchestrate commands, subscriptions, and tasks",
     "license": "BSD-3-Clause",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "exposed-modules": [
         "Procedure",
         "Procedure.Channel",
