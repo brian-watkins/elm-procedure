@@ -54,8 +54,8 @@ openAndConnectSpec =
         [ it "sends the commands with distinct channel ids" (
             Port.observe "stringPortCommand" Json.string
               |> expect (isListWhere
-                [ equals "0-0"
-                , equals "1-0"
+                [ equals "Channel-1"
+                , equals "Channel-3"
                 ]
               )
           )
@@ -65,12 +65,10 @@ openAndConnectSpec =
       runProcedure (
         Channel.open (\channelId -> stringPortCommand channelId)
           |> Channel.connect stringSubscription
-          |> Channel.filter (\key data -> key == "0-0")
           |> Channel.acceptOne
           |> Procedure.andThen (\_ ->
             Channel.open (\channelId -> stringPortCommand channelId)
               |> Channel.connect stringSubscription
-              |> Channel.filter(\key data -> key == "0-1")
               |> Channel.acceptOne
           )
       )
@@ -83,8 +81,8 @@ openAndConnectSpec =
         [ it "sends the commands with distinct channel ids" (
             Port.observe "stringPortCommand" Json.string
               |> expect (isListWhere
-                [ equals "0-0"
-                , equals "0-1"
+                [ equals "Channel-1"
+                , equals "Channel-2"
                 ]
               )
           )

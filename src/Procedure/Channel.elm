@@ -36,7 +36,7 @@ You can also define a channel by providing a command and a subscription to recei
 -}
 
 import Task
-import Procedure.Internal exposing (ProcedureId, ChannelId, Procedure(..), Msg(..))
+import Procedure.Internal exposing (ChannelId, Procedure(..), Msg(..))
 
 
 {-| Represents the unique key assigned to each procedure.
@@ -210,13 +210,13 @@ acceptUntil shouldUnsubscribe (Channel channel) =
     \procId msgTagger resultTagger ->
       let
         requestCommandMsg channelId =
-          channel.request (channelKey procId channelId)
+          channel.request (channelKey channelId)
             |> msgTagger << Execute procId
 
         subGenerator channelId =
           channel.subscription <|
             \aData ->
-              if channel.shouldAccept (channelKey procId channelId) aData then
+              if channel.shouldAccept (channelKey channelId) aData then
                 generateMsg channelId aData
               else
                 msgTagger Continue
@@ -234,9 +234,9 @@ acceptUntil shouldUnsubscribe (Channel channel) =
           |> Task.perform (msgTagger << Subscribe procId requestCommandMsg)
 
 
-channelKey : ProcedureId -> ChannelId -> ChannelKey
-channelKey procId channelId =
-  String.fromInt procId ++ "-" ++ String.fromInt channelId
+channelKey : ChannelId -> ChannelKey
+channelKey channelId =
+  "Channel-" ++ String.fromInt channelId
 
 
 defaultRequest : ChannelKey -> Cmd msg

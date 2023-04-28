@@ -79,7 +79,7 @@ multipleChannelsSpec =
   [ scenario "the channelId is filtered" (
       runMultipleProcedures
       |> when "values are received on the subscription"
-        [ Port.send "objectSubscription" <| Encode.object [ ("key", Encode.string "0-0"), ("value", Encode.string "apple") ]
+        [ Port.send "objectSubscription" <| Encode.object [ ("key", Encode.string "Channel-1"), ("value", Encode.string "apple") ]
         ]
       |> expectValue "apple"
     )
@@ -88,9 +88,9 @@ multipleChannelsSpec =
       |> when "values are received on the subscription"
         [ Port.send "intSubscription" <| Encode.int 7
         , Port.send "intSubscription" <| Encode.int 7
-        , Port.send "intSubscription" <| Encode.int 1
+        , Port.send "intSubscription" <| Encode.int 3
         ]
-      |> expectValue "1"
+      |> expectValue "3"
     )
   , scenario "multiple channels are mapped" (
       tryProcedure (

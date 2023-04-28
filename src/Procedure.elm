@@ -173,7 +173,7 @@ if `Procedure.break` had been used.
 fromTask : Task e a -> Procedure e a msg
 fromTask task =
   Internal.Procedure <|
-    \procId msgTagger resultTagger ->
+    \_ _ resultTagger ->
       Task.attempt resultTagger task
 
 
@@ -293,7 +293,7 @@ addToList procedure collector =
     \aResult ->
       case aResult of
         Ok aData ->
-          aData :: []
+          [aData]
             |> List.append collector
             |> provide
         Err eData ->

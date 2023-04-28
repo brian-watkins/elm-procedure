@@ -37,7 +37,7 @@ keyPressProcedure =
     Browser.Events.onKeyPress <| Decode.map tagger keyDecoder
   )
     |> Channel.filter (\_ keyPress -> keyPress == "Z" || keyPress == "X" || keyPress == "Y")
-    |> Channel.acceptUntil (\_ -> False)
+    |> Channel.acceptOne
     |> Procedure.map (\key -> key ++ "!!!")
     |> Procedure.run ProcMsg PressedKey
 
